@@ -1,11 +1,12 @@
 {
   "name": "mortar-calculator",
   "version": "1.0.0",
-  "description": "Tiny always-on-top mortar range calculator",
+  "description": "Tiny mortar range calculator - always-on-top desktop app and installable web app",
   "private": true,
   "scripts": {
     "start": "tauri dev",
     "build": "tauri build",
+    "serve": "npx --yes serve src -l 5173",
     "tauri": "tauri"
   },
   "author": "Zee Vasilyev",

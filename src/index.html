@@ -2,7 +2,17 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Mortar Calculator</title>
+  <meta name="description" content="Tiny mortar range calculator" />
+  <meta name="theme-color" content="#14171c" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/icon-180.png" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Mortar" />
   <style>
     :root {
       --bg: #14171c;
@@ -21,8 +31,18 @@
       background: var(--bg); color: var(--text);
       font: 13px/1.4 "Segoe UI", system-ui, sans-serif;
       user-select: none; overflow: hidden;
+      -webkit-text-size-adjust: 100%;
+      touch-action: manipulation;
+      overscroll-behavior: none;
     }
-    body { display: flex; flex-direction: column; }
+    body {
+      display: flex; flex-direction: column;
+      /* dvh follows the collapsing browser chrome on phones; the height: 100%
+         above is the fallback for the Tauri webview. */
+      height: 100dvh;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right)
+               env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
 
     .titlebar {
       display: flex; align-items: center; gap: 8px;
@@ -38,6 +58,8 @@
       width: 24px; height: 22px; border-radius: 4px; cursor: pointer;
       font-size: 13px; line-height: 1;
     }
+    /* Pin / minimise / close only mean something in the desktop shell. */
+    body:not(.tauri) .win-only { display: none; }
     .titlebar button:hover { background: var(--panel-2); color: var(--text); }
     .titlebar button.close:hover { background: var(--danger); color: #fff; }
     .titlebar button.pin { display: inline-flex; align-items: center; justify-content: center; }
@@ -47,7 +69,7 @@
     .titlebar button.pin.active .on { display: block; }
     .titlebar button.pin.active .off { display: none; }
 
-    main { flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 12px; }
+    main { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 12px; }
 
     section {
       background: var(--panel); border: 1px solid var(--border);
@@ -92,35 +114,72 @@
       font-variant-numeric: tabular-nums;
     }
     .result .sub b { color: var(--text); font-weight: 600; }
+
+    /* Install hint bar - hidden until the browser says installing is possible. */
+    .install {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; font-size: 12px; line-height: 1.35;
+      background: var(--accent-dim); border-top: 1px solid var(--border);
+      color: var(--text);
+    }
+    /* An author display: flex beats the UA rule for [hidden], so restate it. */
+    .install[hidden], .install button[hidden] { display: none; }
+    .install p { margin: 0; flex: 1; }
+    .install b { color: var(--accent); }
+    .install button {
+      flex: none; border: 0; border-radius: 6px; cursor: pointer;
+      font: inherit; font-weight: 600; padding: 8px 12px;
+      background: var(--accent); color: #14171c;
+    }
+    .install button.dismiss {
+      background: transparent; color: var(--muted); padding: 8px; font-weight: 400;
+    }
+
+    /* Phones: bigger type, taller hit targets. Inputs must stay at 16px or
+       larger or iOS Safari zooms the page in whenever a field is focused. */
+    @media (pointer: coarse) {
+      main { gap: 12px; padding: 14px; }
+      section { padding: 12px; }
+      section h2 { font-size: 12px; }
+      label span { font-size: 12px; }
+      input { font-size: 19px; padding: 12px; border-radius: 8px; }
+      .result .value { font-size: 56px; }
+      .result .value small { font-size: 20px; }
+      .result .sub { font-size: 14px; gap: 18px; }
+      .titlebar { padding: 12px 14px; }
+      .titlebar .title { font-size: 13px; }
+      .install { font-size: 13px; padding: 12px 14px; }
+      .install button { padding: 10px 14px; }
+    }
   </style>
 </head>
 <body>
   <div class="titlebar" data-tauri-drag-region>
     <span class="title" data-tauri-drag-region>Mortar Calc</span>
-    <button class="pin active" id="pin" title="Pinned: always on top (click to unpin)">
+    <button class="pin active win-only" id="pin" title="Pinned: always on top (click to unpin)">
       <!-- pinned: upright, filled -->
       <svg class="on" viewBox="0 0 24 24"><path d="M9 3h6l-1 6 3 3v2H7v-2l3-3z" fill="currentColor" stroke="none"/><path d="M12 14v7"/></svg>
       <!-- unpinned: tilted outline with a slash -->
       <svg class="off" viewBox="0 0 24 24"><g transform="rotate(40 12 12)"><path d="M9 3h6l-1 6 3 3v2H7v-2l3-3z"/><path d="M12 14v7"/></g><path d="M4 4l16 16"/></svg>
     </button>
-    <button id="min" title="Minimize">&#8211;</button>
-    <button class="close" id="close" title="Close">&#10005;</button>
+    <button class="win-only" id="min" title="Minimize">&#8211;</button>
+    <button class="close win-only" id="close" title="Close">&#10005;</button>
   </div>
 
   <main>
     <section>
       <h2>Mortar <span class="tag">saved</span></h2>
       <div class="row">
-        <label><span>X</span><input type="number" id="mx" step="any" placeholder="0" /></label>
-        <label><span>Y</span><input type="number" id="my" step="any" placeholder="0" /></label>
+        <label><span>X</span><input type="number" id="mx" step="any" inputmode="decimal" enterkeyhint="next" autocomplete="off" placeholder="0" /></label>
+        <label><span>Y</span><input type="number" id="my" step="any" inputmode="decimal" enterkeyhint="next" autocomplete="off" placeholder="0" /></label>
       </div>
     </section>
 
     <section>
       <h2>Target</h2>
       <div class="row">
-        <label><span>X1</span><input type="number" id="tx" step="any" placeholder="0" /></label>
-        <label><span>Y1</span><input type="number" id="ty" step="any" placeholder="0" /></label>
+        <label><span>X1</span><input type="number" id="tx" step="any" inputmode="decimal" enterkeyhint="next" autocomplete="off" placeholder="0" /></label>
+        <label><span>Y1</span><input type="number" id="ty" step="any" inputmode="decimal" enterkeyhint="next" autocomplete="off" placeholder="0" /></label>
       </div>
     </section>
 
@@ -134,6 +193,12 @@
       </div>
     </section>
   </main>
+
+  <div class="install" id="install" hidden>
+    <p id="installMsg"></p>
+    <button id="installGo" hidden>Install</button>
+    <button class="dismiss" id="installNo" title="Dismiss">&#10005;</button>
+  </div>
 
   <script>
     const $ = (id) => document.getElementById(id);
@@ -191,29 +256,90 @@
       });
     });
 
-    // Tauri window bridge (withGlobalTauri exposes window.__TAURI__).
-    const tw = window.__TAURI__.window.getCurrentWindow();
-    let pinned = true;
+    // Tauri window bridge (withGlobalTauri exposes window.__TAURI__). Absent
+    // when the same files are served as a web app, so everything here is opt-in.
+    if (window.__TAURI__) {
+      document.body.classList.add('tauri');
+      const tw = window.__TAURI__.window.getCurrentWindow();
+      let pinned = true;
 
-    $('min').onclick = () => tw.minimize();
-    $('close').onclick = () => tw.close();
-    function setPinUI(on) {
-      $('pin').classList.toggle('active', on);
-      $('pin').title = on ? 'Pinned: always on top (click to unpin)' : 'Unpinned: normal window (click to pin)';
+      $('min').onclick = () => tw.minimize();
+      $('close').onclick = () => tw.close();
+      const setPinUI = (on) => {
+        $('pin').classList.toggle('active', on);
+        $('pin').title = on ? 'Pinned: always on top (click to unpin)' : 'Unpinned: normal window (click to pin)';
+      };
+      $('pin').onclick = async () => {
+        pinned = !pinned;
+        await tw.setAlwaysOnTop(pinned);
+        setPinUI(pinned);
+      };
+      // Some games grab the topmost slot when they gain focus; take it back on blur.
+      tw.onFocusChanged(({ payload: focused }) => {
+        if (!focused && pinned) tw.setAlwaysOnTop(true);
+      });
+      tw.isAlwaysOnTop().then((on) => { pinned = on; setPinUI(on); });
     }
-    $('pin').onclick = async () => {
-      pinned = !pinned;
-      await tw.setAlwaysOnTop(pinned);
-      setPinUI(pinned);
-    };
-    // Some games grab the topmost slot when they gain focus; take it back on blur.
-    tw.onFocusChanged(({ payload: focused }) => {
-      if (!focused && pinned) tw.setAlwaysOnTop(true);
-    });
+
+    // --- Add to home screen --------------------------------------------------
+    // Android/Chrome fires beforeinstallprompt and lets us trigger the real
+    // dialog. iOS Safari has no such event and no prompt, so all we can do is
+    // tell the user where the button is. Neither applies once it is installed.
+    (function installBar() {
+      if (window.__TAURI__) return;
+      const installed = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+      if (installed || localStorage.getItem('mortar.installDismissed') === '1') return;
+
+      const bar = $('install'), msg = $('installMsg'), go = $('installGo');
+      const show = (html, withButton) => {
+        msg.innerHTML = html;
+        go.hidden = !withButton;
+        bar.hidden = false;
+      };
+      const hide = (remember) => {
+        bar.hidden = true;
+        if (remember) { try { localStorage.setItem('mortar.installDismissed', '1'); } catch {} }
+      };
+      $('installNo').onclick = () => hide(true);
+
+      let prompt = null;
+      addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        prompt = e;
+        show('Add to your home screen for offline use.', true);
+      });
+      addEventListener('appinstalled', () => hide(true));
+      go.onclick = async () => {
+        if (!prompt) return;
+        hide(false);
+        prompt.prompt();
+        await prompt.userChoice;
+        prompt = null;
+      };
+
+      // iPadOS 13+ reports itself as a Mac, hence the touch-point check.
+      const ua = navigator.userAgent;
+      const ios = /iPhone|iPod|iPad/.test(ua) ||
+                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      if (!ios) return;
+      // Only Safari can install on iOS; every other iOS browser is WebKit in a
+      // wrapper with no Add to Home Screen.
+      if (/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua)) {
+        show('Open this page in <b>Safari</b> to add it to your home screen.', false);
+      } else {
+        show('Tap <b>Share</b>, then <b>Add to Home Screen</b>.', false);
+      }
+    })();
+
+    // Offline install. Service workers need a secure context, so this is a
+    // no-op under tauri://, file:// and plain http on a LAN address.
+    if ('serviceWorker' in navigator &&
+        (location.protocol === 'https:' || location.hostname === 'localhost')) {
+      addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+    }
 
     load();
     update();
-    tw.isAlwaysOnTop().then((on) => { pinned = on; setPinUI(on); });
     $('tx').focus();
   </script>
 </body>
