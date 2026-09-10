@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Mortar Calculator</title>
+  <style>
+    :root {
+      --bg: #14171c;
+      --panel: #1c2027;
+      --panel-2: #232830;
+      --border: #2d333d;
+      --text: #e6e9ef;
+      --muted: #8b93a1;
+      --accent: #f5a623;
+      --accent-dim: rgba(245, 166, 35, 0.15);
+      --danger: #e5484d;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; height: 100%;
+      background: var(--bg); color: var(--text);
+      font: 13px/1.4 "Segoe UI", system-ui, sans-serif;
+      user-select: none; overflow: hidden;
+    }
+    body { display: flex; flex-direction: column; }
+
+    .titlebar {
+      -webkit-app-region: drag;
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 10px; background: var(--panel);
+      border-bottom: 1px solid var(--border);
+    }
+    .titlebar .title {
+      flex: 1; font-weight: 600; font-size: 12px;
+      letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+    }
+    .titlebar button {
+      -webkit-app-region: no-drag;
+      background: transparent; border: 0; color: var(--muted);
+      width: 24px; height: 22px; border-radius: 4px; cursor: pointer;
+      font-size: 13px; line-height: 1;
+    }
+    .titlebar button:hover { background: var(--panel-2); color: var(--text); }
+    .titlebar button.close:hover { background: var(--danger); color: #fff; }
+    .titlebar button.pin.active { color: var(--accent); }
+
+    main { flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 12px; }
+
+    section {
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px;
+    }
+    section h2 {
+      margin: 0 0 8px; font-size: 11px; font-weight: 600;
+      letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    section h2 .tag {
+      font-size: 10px; color: var(--accent); background: var(--accent-dim);
+      padding: 1px 6px; border-radius: 999px; letter-spacing: 0.04em;
+    }
+    .row { display: flex; gap: 8px; }
+    label { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+    label span { font-size: 11px; color: var(--muted); }
+    input {
+      width: 100%; background: var(--bg); color: var(--text);
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 7px 9px; font-size: 15px; font-variant-numeric: tabular-nums;
+      outline: none; transition: border-color 0.12s;
+    }
+    input:focus { border-color: var(--accent); }
+    input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; }
+    input[type=number] { -moz-appearance: textfield; }
+
+    .result {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      justify-content: center; text-align: center;
+      background: linear-gradient(180deg, var(--panel) 0%, var(--panel-2) 100%);
+    }
+    .result .label { font-size: 11px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; }
+    .result .value {
+      font-size: 44px; font-weight: 700; line-height: 1.1;
+      color: var(--accent); font-variant-numeric: tabular-nums;
+      margin: 4px 0 2px;
+    }
+    .result .value small { font-size: 16px; font-weight: 500; color: var(--muted); margin-left: 4px; }
+    .result .sub {
+      display: flex; gap: 14px; margin-top: 8px; font-size: 12px; color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+    .result .sub b { color: var(--text); font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="titlebar">
+    <span class="title">Mortar Calc</span>
+    <button class="pin active" id="pin" title="Always on top">📌</button>
+    <button id="min" title="Minimize">&#8211;</button>
+    <button class="close" id="close" title="Close">&#10005;</button>
+  </div>
+
+  <main>
+    <section>
+      <h2>Mortar <span class="tag">saved</span></h2>
+      <div class="row">
+        <label><span>X</span><input type="number" id="mx" step="any" placeholder="0" /></label>
+        <label><span>Y</span><input type="number" id="my" step="any" placeholder="0" /></label>
+      </div>
+    </section>
+
+    <section>
+      <h2>Target</h2>
+      <div class="row">
+        <label><span>X1</span><input type="number" id="tx" step="any" placeholder="0" /></label>
+        <label><span>Y1</span><input type="number" id="ty" step="any" placeholder="0" /></label>
+      </div>
+    </section>
+
+    <section class="result">
+      <div class="label">Distance</div>
+      <div class="value"><span id="dist">0</span><small>m</small></div>
+      <div class="sub">
+        <span>ΔX <b id="dx">0</b></span>
+        <span>ΔY <b id="dy">0</b></span>
+        <span>Brg <b id="brg">0°</b></span>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const inputs = ['mx', 'my', 'tx', 'ty'].map($);
+    const SCALE = 100;
+
+    function num(el) {
+      const v = parseFloat(el.value);
+      return Number.isFinite(v) ? v : 0;
+    }
+
+    function fmt(n, d = 0) {
+      return n.toLocaleString(undefined, { maximumFractionDigits: d, minimumFractionDigits: d });
+    }
+
+    function update() {
+      const dx = num($('tx')) - num($('mx'));
+      const dy = num($('ty')) - num($('my'));
+      const dist = Math.sqrt(dx * dx + dy * dy) * SCALE;
+      // Bearing: 0° = +Y, clockwise. Adjust if the game uses a different convention.
+      let brg = (Math.atan2(dx, dy) * 180) / Math.PI;
+      if (brg < 0) brg += 360;
+
+      $('dist').textContent = fmt(dist);
+      $('dx').textContent = fmt(dx * SCALE);
+      $('dy').textContent = fmt(dy * SCALE);
+      $('brg').textContent = fmt(brg, 1) + '°';
+    }
+
+    // Persist all four fields so the mortar position survives restarts.
+    function save() {
+      try {
+        localStorage.setItem('mortar', JSON.stringify(Object.fromEntries(inputs.map((i) => [i.id, i.value]))));
+      } catch {}
+    }
+    function load() {
+      try {
+        const s = JSON.parse(localStorage.getItem('mortar') || '{}');
+        inputs.forEach((i) => { if (s[i.id] != null) i.value = s[i.id]; });
+      } catch {}
+    }
+
+    inputs.forEach((i) => {
+      i.addEventListener('input', () => { update(); save(); });
+      i.addEventListener('focus', () => i.select());
+    });
+
+    // Enter moves to the next field (mortar X -> Y -> target X1 -> Y1 -> back to X1).
+    inputs.forEach((i, idx) => {
+      i.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          const next = idx === inputs.length - 1 ? inputs[2] : inputs[idx + 1];
+          next.focus();
+        }
+      });
+    });
+
+    $('min').onclick = () => window.mortar.minimize();
+    $('close').onclick = () => window.mortar.close();
+    $('pin').onclick = async () => {
+      const on = await window.mortar.togglePin();
+      $('pin').classList.toggle('active', on);
+    };
+
+    load();
+    update();
+    $('tx').focus();
+  </script>
+</body>
+</html>

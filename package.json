@@ -1,0 +1,22 @@
+{
+  "name": "mortar-calculator",
+  "version": "1.0.0",
+  "description": "Tiny always-on-top mortar range calculator",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win portable"
+  },
+  "author": "Zee Vasilyev",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.zee.mortarcalc",
+    "productName": "Mortar Calculator",
+    "files": ["main.js", "preload.js", "index.html"],
+    "win": { "target": "portable" }
+  }
+}
