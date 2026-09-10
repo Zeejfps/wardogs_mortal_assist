@@ -42,7 +42,12 @@
     }
     .titlebar button:hover { background: var(--panel-2); color: var(--text); }
     .titlebar button.close:hover { background: var(--danger); color: #fff; }
-    .titlebar button.pin.active { color: var(--accent); }
+    .titlebar button.pin { display: inline-flex; align-items: center; justify-content: center; }
+    .titlebar button.pin svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .titlebar button.pin .on { display: none; }
+    .titlebar button.pin.active { color: var(--accent); background: var(--accent-dim); }
+    .titlebar button.pin.active .on { display: block; }
+    .titlebar button.pin.active .off { display: none; }
 
     main { flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 12px; }
 
@@ -94,7 +99,12 @@
 <body>
   <div class="titlebar">
     <span class="title">Mortar Calc</span>
-    <button class="pin active" id="pin" title="Always on top">📌</button>
+    <button class="pin active" id="pin" title="Pinned: always on top (click to unpin)">
+      <!-- pinned: upright, filled -->
+      <svg class="on" viewBox="0 0 24 24"><path d="M9 3h6l-1 6 3 3v2H7v-2l3-3z" fill="currentColor" stroke="none"/><path d="M12 14v7"/></svg>
+      <!-- unpinned: tilted outline with a slash -->
+      <svg class="off" viewBox="0 0 24 24"><g transform="rotate(40 12 12)"><path d="M9 3h6l-1 6 3 3v2H7v-2l3-3z"/><path d="M12 14v7"/></g><path d="M4 4l16 16"/></svg>
+    </button>
     <button id="min" title="Minimize">&#8211;</button>
     <button class="close" id="close" title="Close">&#10005;</button>
   </div>
@@ -185,14 +195,15 @@
 
     $('min').onclick = () => window.mortar.minimize();
     $('close').onclick = () => window.mortar.close();
-    $('pin').onclick = async () => {
-      const on = await window.mortar.togglePin();
+    function setPinUI(on) {
       $('pin').classList.toggle('active', on);
-    };
+      $('pin').title = on ? 'Pinned: always on top (click to unpin)' : 'Unpinned: normal window (click to pin)';
+    }
+    $('pin').onclick = async () => setPinUI(await window.mortar.togglePin());
 
     load();
     update();
-    window.mortar.isPinned().then((on) => $('pin').classList.toggle('active', on));
+    window.mortar.isPinned().then(setPinUI);
     $('tx').focus();
   </script>
 </body>

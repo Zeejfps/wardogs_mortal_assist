@@ -18,7 +18,9 @@ Tiny always-on-top Electron window for computing mortar range in-game.
 
     npm run build
 
-Output lands in `dist/`.
+Produces `dist/MortarCalculator.exe`, a single self-contained file you can copy anywhere and
+double-click. No install needed. Code signing is disabled (the exe is unsigned), so Windows
+SmartScreen may warn on first launch; click "More info" then "Run anyway".
 
 ## Not staying on top of the game?
 

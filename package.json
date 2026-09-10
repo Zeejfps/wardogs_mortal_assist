@@ -16,7 +16,17 @@
   "build": {
     "appId": "com.zee.mortarcalc",
     "productName": "Mortar Calculator",
-    "files": ["main.js", "preload.js", "index.html"],
-    "win": { "target": "portable" }
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html"
+    ],
+    "win": {
+      "target": "portable",
+      "signAndEditExecutable": false
+    },
+    "portable": {
+      "artifactName": "MortarCalculator.exe"
+    }
   }
 }
