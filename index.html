@@ -192,6 +192,7 @@
 
     load();
     update();
+    window.mortar.isPinned().then((on) => $('pin').classList.toggle('active', on));
     $('tx').focus();
   </script>
 </body>

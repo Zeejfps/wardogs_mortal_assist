@@ -4,4 +4,5 @@ contextBridge.exposeInMainWorld('mortar', {
   minimize: () => ipcRenderer.send('win:minimize'),
   close: () => ipcRenderer.send('win:close'),
   togglePin: () => ipcRenderer.invoke('win:togglePin'),
+  isPinned: () => ipcRenderer.invoke('win:isPinned'),
 });

@@ -19,3 +19,10 @@ Tiny always-on-top Electron window for computing mortar range in-game.
     npm run build
 
 Output lands in `dist/`.
+
+## Not staying on top of the game?
+
+Windows lets nothing draw over a game running in **exclusive fullscreen**. Switch the
+game's display mode to **Borderless** / **Windowed Fullscreen** and the calculator will
+stay visible. The app re-asserts topmost whenever it loses focus, so games that grab the
+topmost slot themselves are handled.
