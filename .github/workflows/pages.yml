@@ -35,6 +35,8 @@ jobs:
           cache: npm
 
       - run: npm ci
+      # Fail the deploy on type errors rather than shipping them.
+      - run: npm run check
       # Every built file carries a content hash and the service worker's
       # precache list is regenerated from them, so an installed phone picks up
       # a new deploy on its next launch without any manual cache versioning.
