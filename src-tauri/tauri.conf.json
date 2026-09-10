@@ -1,0 +1,40 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "MortarCalculator",
+  "version": "1.0.0",
+  "identifier": "com.zee.mortarcalc",
+  "build": {
+    "frontendDist": "../src"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "Mortar Calculator",
+        "width": 300,
+        "height": 420,
+        "minWidth": 260,
+        "minHeight": 360,
+        "resizable": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "backgroundColor": "#14171c"
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}

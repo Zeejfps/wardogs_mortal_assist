@@ -1,26 +1,43 @@
 # Mortar Calculator
 
-Tiny always-on-top Electron window for computing mortar range in-game.
+Tiny always-on-top desktop window (Tauri) for computing mortar range in-game.
 
     distance = sqrt((X1 - X)^2 + (Y1 - Y)^2) * 100
 
 - **Mortar X / Y** – your gun position. Saved automatically and restored on next launch.
 - **Target X1 / Y1** – updates the distance live as you type. Enter jumps to the next field.
 - Readout also shows ΔX, ΔY (scaled) and a bearing (0° = +Y, clockwise).
-- 📌 toggles always-on-top. Drag the title bar to move the window.
+- Pin button toggles always-on-top (orange solid pin = pinned, grey slashed pin = not).
+  Drag the title bar to move the window.
 
-## Run
+## Layout
+
+- `src/index.html` – the whole UI and math.
+- `src-tauri/` – Rust shell, window config (`tauri.conf.json`), permissions (`capabilities/`).
+
+## Prerequisites
+
+- Node.js
+- Rust toolchain (`rustup`) with the MSVC target
+- Visual Studio Build Tools (C++ workload)
+- WebView2 runtime (ships with Windows 11)
+
+## Run in dev
 
     npm install
     npm start
 
-## Build a portable .exe
+## Build a standalone .exe
 
     npm run build
 
-Produces `dist/MortarCalculator.exe`, a single self-contained file you can copy anywhere and
-double-click. No install needed. Code signing is disabled (the exe is unsigned), so Windows
-SmartScreen may warn on first launch; click "More info" then "Run anyway".
+Output:
+
+- `src-tauri/target/release/MortarCalculator.exe` – standalone exe, copy anywhere and run.
+- `src-tauri/target/release/bundle/nsis/*.exe` – optional installer.
+
+The exe is unsigned, so Windows SmartScreen may warn on first launch; click "More info" then
+"Run anyway".
 
 ## Not staying on top of the game?
 
