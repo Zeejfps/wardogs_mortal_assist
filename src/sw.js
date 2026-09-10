@@ -1,6 +1,7 @@
-// Precache everything: the app is four files and must work with no signal.
-// Bump CACHE when any of them change - the old cache is dropped on activate.
-const CACHE = 'mortar-v1';
+// Precache everything: the app is a handful of files and must work with no signal.
+// The Pages workflow rewrites CACHE to the release tag on deploy, and the old
+// cache is dropped on activate - so a new tag is what pushes an update to phones.
+const CACHE = 'mortar-dev';
 const ASSETS = [
   '.',
   'index.html',

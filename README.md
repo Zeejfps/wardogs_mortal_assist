@@ -3,7 +3,8 @@
 Tiny mortar range calculator. The same files in `src/` run two ways:
 
 - an always-on-top desktop window (Tauri), and
-- an installable web app (PWA) you can add to a phone home screen and use offline.
+- an installable web app (PWA) at <https://helpmeaim.builtbyzee.com> that you can add
+  to a phone home screen and use offline.
 
     distance = sqrt((X1 - X)^2 + (Y1 - Y)^2) * 100
 
@@ -61,11 +62,27 @@ Install on the phone:
 Once added it launches full screen with no browser chrome, the mortar position is
 remembered in `localStorage`, and it works with no signal.
 
-### Deploying an update
+### Deploying
 
-`src/sw.js` caches everything on first load, so after uploading new files bump
-`CACHE` at the top of `sw.js` (`mortar-v1` -> `mortar-v2`). Without that bump an
-already-installed phone can keep serving the old copy.
+Hosted on GitHub Pages at **https://helpmeaim.builtbyzee.com**. Deploys are cut by
+tag, not by every push to `main`:
+
+    git tag v1.0.1
+    git push origin v1.0.1
+
+That runs `.github/workflows/pages.yml`, which stamps the tag into the service
+worker cache name and uploads `src/` as the site. Stamping matters: an installed
+phone serves from its cache until that string changes, so shipping without a new
+tag would leave old copies on people's home screens. "Run workflow" in the Actions
+tab does a manual deploy off the current branch.
+
+One-time setup, in the repo's **Settings -> Pages**: set *Source* to **GitHub Actions**.
+Then, in DNS for `builtbyzee.com`, add a CNAME record:
+
+    helpmeaim  ->  zeejfps.github.io
+
+GitHub issues the certificate once the record resolves (a few minutes to an hour);
+tick *Enforce HTTPS* on that Pages settings page after it does.
 
 ## Not staying on top of the game?
 
