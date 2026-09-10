@@ -1,17 +1,24 @@
 {
   "name": "mortar-calculator",
   "version": "1.0.0",
-  "description": "Tiny mortar range calculator - always-on-top desktop app and installable web app",
+  "description": "Tiny mortar range calculator - installable, offline web app",
   "private": true,
+  "type": "module",
   "scripts": {
-    "start": "tauri dev",
-    "build": "tauri build",
-    "serve": "npx --yes serve src -l 5173",
-    "tauri": "tauri"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-check --tsconfig ./tsconfig.json"
   },
   "author": "Zee Vasilyev",
   "license": "MIT",
   "devDependencies": {
-    "@tauri-apps/cli": "^2"
+    "@sveltejs/vite-plugin-svelte": "^7.3.0",
+    "@tsconfig/svelte": "^5.0.8",
+    "svelte": "^5.57.0",
+    "svelte-check": "^4.7.6",
+    "typescript": "~5.9",
+    "vite": "^8.3.0",
+    "vite-plugin-pwa": "^1.3.0"
   }
 }

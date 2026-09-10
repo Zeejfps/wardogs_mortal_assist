@@ -1,9 +1,9 @@
-# Publishes src/ to GitHub Pages when a release tag is pushed:
+# Builds the app and publishes dist/ to GitHub Pages when a release tag is pushed:
 #
 #     git tag v1.0.1 && git push origin v1.0.1
 #
-# There is no build step - the folder is the site. src/CNAME carries the custom
-# domain, so it has to be part of the uploaded artifact (it is, it lives in src/).
+# public/CNAME carries the custom domain; Vite copies public/ into dist/ so it
+# ends up in the uploaded artifact.
 name: Deploy to GitHub Pages
 
 on:
@@ -29,19 +29,20 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
 
-      # Stamp the tag into the service worker cache name. Installed phones only
-      # drop their old copy when this string changes, so tying it to the release
-      # means every deploy invalidates automatically.
-      - name: Version the service worker cache
-        run: |
-          version="${GITHUB_REF_NAME:-manual-$GITHUB_SHA}"
-          sed -i "s/const CACHE = '[^']*'/const CACHE = 'mortar-$version'/" src/sw.js
-          grep -n "const CACHE" src/sw.js
+      - run: npm ci
+      # Every built file carries a content hash and the service worker's
+      # precache list is regenerated from them, so an installed phone picks up
+      # a new deploy on its next launch without any manual cache versioning.
+      - run: npm run build
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: src
+          path: dist
       - id: deploy
         uses: actions/deploy-pages@v4
