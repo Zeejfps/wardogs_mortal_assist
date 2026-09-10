@@ -58,8 +58,6 @@
       width: 24px; height: 22px; border-radius: 4px; cursor: pointer;
       font-size: 13px; line-height: 1;
     }
-    /* Pin / minimise / close only mean something in the desktop shell. */
-    body:not(.tauri) .win-only { display: none; }
     .titlebar button:hover { background: var(--panel-2); color: var(--text); }
     .titlebar button.close:hover { background: var(--danger); color: #fff; }
     .titlebar button.pin { display: inline-flex; align-items: center; justify-content: center; }
@@ -68,6 +66,11 @@
     .titlebar button.pin.active { color: var(--accent); background: var(--accent-dim); }
     .titlebar button.pin.active .on { display: block; }
     .titlebar button.pin.active .off { display: none; }
+
+    /* Pin / minimise / close only mean something in the desktop shell. This has
+       to out-specify (and follow) the .titlebar button.pin display above, which
+       would otherwise tie on specificity and win on source order. */
+    body:not(.tauri) .titlebar button.win-only { display: none; }
 
     main { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 12px; }
 
