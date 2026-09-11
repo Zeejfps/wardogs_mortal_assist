@@ -30,3 +30,41 @@ html, body {
   padding: env(safe-area-inset-top) env(safe-area-inset-right)
            env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
+
+/* Layout shared by both screens. */
+main {
+  flex: 1; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 10px; padding: 12px;
+}
+section {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px;
+}
+section h2 {
+  margin: 0 0 8px; font-size: 11px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+  display: flex; align-items: center; justify-content: space-between;
+}
+section h2 .tag {
+  font-size: 10px; color: var(--accent); background: var(--accent-dim);
+  padding: 1px 6px; border-radius: 999px; letter-spacing: 0.04em;
+}
+.row { display: flex; gap: 8px; }
+
+.btn {
+  background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 7px 12px; font: inherit; font-size: 13px; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn:active { background: var(--border); }
+.btn:disabled { opacity: 0.4; cursor: default; }
+.btn.danger { color: var(--danger); }
+
+@media (pointer: coarse) {
+  main { gap: 12px; padding: 14px; }
+  section { padding: 12px; }
+  section h2 { font-size: 12px; }
+  .btn { font-size: 15px; padding: 11px 14px; border-radius: 8px; }
+}

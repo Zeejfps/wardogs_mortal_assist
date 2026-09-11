@@ -6,9 +6,19 @@ offline.
 
     distance = sqrt((X1 - X)^2 + (Y1 - Y)^2) * 100
 
-- **Mortar X / Y** – your gun position. Saved automatically and restored on next launch.
-- **Target X1 / Y1** – updates the distance live as you type. Enter jumps to the next field.
+Two screens, toggled by the **Edit / Done** button in the titlebar:
+
+- **Fire** (default) – the in-game view. Pick the map from the titlebar dropdown,
+  type the **Mortar X / Y** gun position (saved per map), then tap a saved
+  **Target** button to get the range. The **Manual** button reveals X1 / Y1
+  fields for a one-off target. Enter jumps to the next field.
+- **Edit** – rename or add maps, enter targets (name, X1, Y1; Enter walks
+  name -> X -> Y -> new row), and share. **Export** hands you a JSON file via the
+  share sheet on phones or a download elsewhere; **Import** merges a friend's
+  file by id, so re-importing an updated file replaces what changed.
 - Readout also shows ΔX, ΔY (scaled) and a bearing (0° = +Y, clockwise).
+
+Everything lives in `localStorage`; nothing is bundled or sent anywhere.
 
 ## Stack
 
@@ -19,7 +29,12 @@ manifest and a Workbox service worker that precaches the whole build.
 
 - `index.html` – Vite entry point and PWA meta tags.
 - `src/main.ts` – mounts the app and registers the service worker.
-- `src/App.svelte` – layout, state, persistence.
+- `src/App.svelte` – titlebar and the fire/edit screen switch.
+- `src/lib/FireScreen.svelte` – in-game view: gun position, target buttons, readout.
+- `src/lib/EditScreen.svelte` – map and target entry, export/import.
+- `src/lib/MapPicker.svelte` – the map dropdown in the titlebar.
+- `src/lib/store.svelte.ts` – shared app state and persistence.
+- `src/lib/library.ts` – map/target types, the shared JSON format, merge and export.
 - `src/lib/Field.svelte` – one numeric input.
 - `src/lib/InstallBar.svelte` – the add-to-home-screen hint.
 - `src/lib/mortar.ts` – the range/bearing math.
