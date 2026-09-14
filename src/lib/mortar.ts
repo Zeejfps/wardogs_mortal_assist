@@ -19,6 +19,23 @@ export interface Solution {
   brg: number;
 }
 
+/**
+ * Clean a typed coordinate: digits, one decimal point and an optional leading
+ * minus. Coordinates are kept as text so a half-typed "12." survives; number
+ * inputs would round-trip through a number and drop the trailing point.
+ */
+export function coord(value: unknown): string {
+  const raw = typeof value === 'string' ? value : typeof value === 'number' ? String(value) : '';
+  let out = '';
+  let dot = false;
+  for (const c of raw.replace(',', '.')) {
+    if (c === '-' && out === '') out += c;
+    else if (c === '.' && !dot) { dot = true; out += c; }
+    else if (c >= '0' && c <= '9') out += c;
+  }
+  return out;
+}
+
 /** Parse an input's text; anything that is not a finite number counts as 0. */
 export function num(value: string): number {
   const v = parseFloat(value);

@@ -2,7 +2,8 @@
   // Data entry and sharing. Kept off the fire screen so in-game use is just
   // tapping targets. Enter walks name -> X -> Y -> a fresh row for fast typing.
   import { tick } from 'svelte';
-  import { str, type Gun, type Location } from './library';
+  import { type Gun, type Location } from './library';
+  import { coord } from './mortar';
   import { store } from './store.svelte';
 
   const map = $derived(store.map);
@@ -13,13 +14,13 @@
   let fileInput: HTMLInputElement;
   const refs: Record<string, HTMLInputElement> = {};
 
-  // Number inputs bind as numbers (null when blank); coordinates are kept as
-  // the typed strings so they round-trip exactly, hence the function bindings.
-  function setX(o: { x: string }): (v: unknown) => void {
-    return (v) => (o.x = str(v));
+  // Coordinates are plain text inputs (a number input would drop a trailing
+  // "." while typing 12.34), cleaned to a decimal on the way in.
+  function setX(o: { x: string }): (v: string) => void {
+    return (v) => (o.x = coord(v));
   }
-  function setY(o: { y: string }): (v: unknown) => void {
-    return (v) => (o.y = str(v));
+  function setY(o: { y: string }): (v: string) => void {
+    return (v) => (o.y = coord(v));
   }
 
   async function addLocation(): Promise<void> {
@@ -96,9 +97,9 @@
       <div class="loc">
         <input class="text" type="text" placeholder="A" bind:value={gun.name}
                enterkeyhint="next" autocomplete="off" maxlength="12" />
-        <input class="num" type="number" step="any" inputmode="decimal" placeholder="0" bind:value={() => gun.x, setX(gun)}
+        <input class="num" type="text" inputmode="decimal" placeholder="0" bind:value={() => gun.x, setX(gun)}
                enterkeyhint="next" autocomplete="off" onfocus={(e) => e.currentTarget.select()} />
-        <input class="num" type="number" step="any" inputmode="decimal" placeholder="0" bind:value={() => gun.y, setY(gun)}
+        <input class="num" type="text" inputmode="decimal" placeholder="0" bind:value={() => gun.y, setY(gun)}
                enterkeyhint="done" autocomplete="off" onfocus={(e) => e.currentTarget.select()} />
         <button class="x" onclick={() => deleteGun(gun)} disabled={onlyGun} aria-label="Delete gun">×</button>
       </div>
@@ -119,10 +120,10 @@
         <input class="text" type="text" placeholder="Name" bind:value={loc.name}
                bind:this={refs[`${loc.id}:name`]} onkeydown={(e) => onEnter(e, loc, 'name')}
                enterkeyhint="next" autocomplete="off" />
-        <input class="num" type="number" step="any" inputmode="decimal" placeholder="0" bind:value={() => loc.x, setX(loc)}
+        <input class="num" type="text" inputmode="decimal" placeholder="0" bind:value={() => loc.x, setX(loc)}
                bind:this={refs[`${loc.id}:x`]} onkeydown={(e) => onEnter(e, loc, 'x')}
                enterkeyhint="next" autocomplete="off" onfocus={(e) => e.currentTarget.select()} />
-        <input class="num" type="number" step="any" inputmode="decimal" placeholder="0" bind:value={() => loc.y, setY(loc)}
+        <input class="num" type="text" inputmode="decimal" placeholder="0" bind:value={() => loc.y, setY(loc)}
                bind:this={refs[`${loc.id}:y`]} onkeydown={(e) => onEnter(e, loc, 'y')}
                enterkeyhint="done" autocomplete="off" onfocus={(e) => e.currentTarget.select()} />
         <button class="x" onclick={() => deleteLocation(loc)} aria-label="Delete target">×</button>
@@ -155,8 +156,6 @@
   }
   input.num { font-variant-numeric: tabular-nums; }
   input:focus { border-color: var(--accent); }
-  input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; }
-  input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   .row input.text { flex: 1; }
 
   .head, .loc {

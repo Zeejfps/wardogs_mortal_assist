@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { coord } from './mortar';
+
   interface Props {
     label: string;
     value?: string;
@@ -10,10 +12,10 @@
 
   let el: HTMLInputElement;
 
-  // A number input binds as a number (or null when blank); the rest of the
-  // app keeps coordinates as the typed strings, so convert on the way out.
-  function set(v: string | number | null): void {
-    value = v == null ? '' : String(v);
+  // A text input, not a number one: the app keeps coordinates as the typed
+  // strings and a number input would drop the trailing "." while typing 12.34.
+  function set(v: string): void {
+    value = coord(v);
   }
 
   export function focus(): void {
@@ -34,8 +36,7 @@
   <input
     bind:this={el}
     bind:value={() => value, set}
-    type="number"
-    step="any"
+    type="text"
     inputmode="decimal"
     enterkeyhint="next"
     autocomplete="off"
@@ -55,8 +56,6 @@
     outline: none; transition: border-color 0.12s;
   }
   input:focus { border-color: var(--accent); }
-  input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; }
-  input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
   /* Inputs must stay at 16px or larger or iOS Safari zooms the page in
      whenever a field is focused. */
