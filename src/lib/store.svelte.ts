@@ -6,14 +6,15 @@ import {
   parseLibrary, serialize, slug, str, exportFile,
   type GameMap, type Gun, type Library, type Location,
 } from './library';
-import { MAP_IMAGES, fmtUnit, imageByName } from './maps';
+import { fmtUnit, imageByName } from './maps';
 import { num, type Position } from './mortar';
+import { PRESETS_VERSION, presetLibrary } from './presets';
 import { read, write } from './storage';
 
 const LIB_KEY = 'mortar.library';
 const SEL_KEY = 'mortar.selection';
-/** Pre-library builds saved the four fields under this key. */
-const LEGACY_KEY = 'mortar';
+/** The PRESETS_VERSION last merged into the library. */
+const PRESETS_KEY = 'mortar.presets';
 /** How many kept manual entries per map; the oldest falls off the end. */
 const MAX_RECENTS = 6;
 
@@ -62,21 +63,22 @@ function load(): { library: Library; sel: Selection } {
     mapOpen: stored.mapOpen ?? true,
   };
 
-  if (library.maps.length === 0) {
-    // First run: one map per built-in image, with any fields saved by a
-    // pre-library build carried into the first of them.
-    const legacy = read<Partial<Position>>(LEGACY_KEY, {});
-    for (const img of MAP_IMAGES) library.maps.push(newMap(img.name, img.id));
-    library.maps[0].guns[0].x = legacy.mx ?? '';
-    library.maps[0].guns[0].y = legacy.my ?? '';
-    sel.manual = { tx: legacy.tx ?? '', ty: legacy.ty ?? '' };
-  }
   // A map made before images existed links itself if it is named after one.
+  // Done before the presets merge so such a map is matched rather than doubled.
   for (const m of library.maps) {
     if (!m.image) {
       const img = imageByName(m.name);
       if (img) m.image = img.id;
     }
+  }
+  // The built-in maps and targets: everything on a first run, and whenever a
+  // build ships a newer set, the changes merged into the maps already here.
+  // Saved straight away so the merge is not repeated if the app is closed
+  // before the first persist.
+  if (read<number>(PRESETS_KEY, 0) < PRESETS_VERSION) {
+    mergeLibrary(library, presetLibrary(), { byImage: true });
+    write(LIB_KEY, library);
+    write(PRESETS_KEY, PRESETS_VERSION);
   }
   if (!library.maps.some((m) => m.id === sel.mapId)) {
     sel.mapId = library.maps[0].id;

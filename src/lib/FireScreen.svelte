@@ -48,6 +48,12 @@
     fields.tx?.focus();
   }
 
+  // Drops the selected gun. A blank one goes without asking, as on the edit screen.
+  function deleteGun(): void {
+    const blank = !gun.x && !gun.y;
+    if (blank || confirm(`Delete gun "${gun.name}"?`)) store.deleteGun(gun.id);
+  }
+
 </script>
 
 <section class="result">
@@ -104,6 +110,15 @@
         </button>
       {/each}
       <button class="pill add" onclick={() => store.addGun()} aria-label="Add gun position">+</button>
+      {#if map.guns.length > 1}
+        <button class="pill add remove" onclick={deleteGun}
+                aria-label="Delete selected gun position" title="Delete selected gun">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6" />
+          </svg>
+        </button>
+      {/if}
     </div>
   </section>
 
@@ -194,6 +209,8 @@
   }
   .pill.active { color: var(--accent); border-color: var(--accent); background: var(--accent-dim); }
   .pill.add { min-width: 30px; padding: 0 9px; border-style: dashed; }
+  .pill.remove { display: inline-flex; align-items: center; justify-content: center; }
+  .pill.remove:hover, .pill.remove:active { color: var(--danger); }
 
   .grid {
     display: grid; gap: 8px;

@@ -110,17 +110,29 @@ export function libraryFromJSON(raw: unknown): Library {
   return { version: 1, maps };
 }
 
+export interface MergeOptions {
+  /**
+   * Also treat a map drawn on the same image as the same map when no id
+   * matches. Right for the built-in presets, where each image has exactly
+   * one map; wrong for a friend's file, whose Ozeti may be a different set
+   * of targets worth keeping apart.
+   */
+  byImage?: boolean;
+}
+
 /**
  * Merge a shared library into the local one, matching maps, locations and
  * guns by id. Matches are replaced, everything else is appended; blank guns
- * are skipped so a friend's untouched default gun does not pile up. Mutates
- * `into` and reports what changed.
+ * are skipped so a friend's untouched default gun does not pile up, and a
+ * positioned gun fills in a blank local gun of the same name rather than
+ * joining it as a twin. Mutates `into` and reports what changed.
  */
-export function mergeLibrary(into: Library, from: Library): { maps: number; locations: number } {
+export function mergeLibrary(into: Library, from: Library, opts: MergeOptions = {}): { maps: number; locations: number } {
   let maps = 0;
   let locations = 0;
   for (const src of from.maps) {
-    const dst = into.maps.find((m) => m.id === src.id);
+    const dst = into.maps.find((m) => m.id === src.id)
+      ?? (opts.byImage && src.image ? into.maps.find((m) => m.image === src.image) : undefined);
     if (!dst) {
       into.maps.push(structuredClone(src));
       maps++;
@@ -131,7 +143,8 @@ export function mergeLibrary(into: Library, from: Library): { maps: number; loca
     if (src.image) dst.image = src.image;
     for (const gun of src.guns) {
       if (!gun.x && !gun.y) continue;
-      const i = dst.guns.findIndex((g) => g.id === gun.id);
+      let i = dst.guns.findIndex((g) => g.id === gun.id);
+      if (i === -1) i = dst.guns.findIndex((g) => g.name === gun.name && !g.x && !g.y);
       if (i === -1) dst.guns.push({ ...gun });
       else dst.guns[i] = { ...gun };
     }

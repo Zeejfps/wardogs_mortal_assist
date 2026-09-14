@@ -20,7 +20,7 @@ export interface MapImage {
 export const MAP_IMAGES: MapImage[] = [
   { id: 'bakurani', name: 'Bakurani', units: 163.84, maxZoom: 6 },
   { id: 'ozeti', name: 'Ozeti', units: 163.84, maxZoom: 6 },
-  { id: 'zesty', name: 'Zesty', units: 163.84, maxZoom: 6 },
+  { id: 'zesty', name: 'Zestafona', units: 163.84, maxZoom: 6 },
 ];
 
 /** Where the tiles live; override with VITE_TILE_BASE to test a local copy. */

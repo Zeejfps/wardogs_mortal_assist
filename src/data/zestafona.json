@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "maps": [
+    {
+      "id": "zestafona",
+      "name": "Zestafona",
+      "guns": [
+        {
+          "id": "zestafona-a",
+          "name": "A",
+          "x": "",
+          "y": ""
+        }
+      ],
+      "locations": [],
+      "image": "zesty"
+    }
+  ]
+}

@@ -13,7 +13,8 @@ Two screens, toggled by the **Edit / Done** button in the titlebar:
   targets and the current target drawn on it: tap to set a manual target,
   hold (or drag the active gun) to move the gun, pinch to zoom, **⌖** recentres
   on the gun. Pick the map from the titlebar dropdown, pick a gun position from the
-  pills in the **Mortar** header (**+** adds one) and type its X / Y, then tap
+  pills in the **Mortar** header (**+** adds one, the trash button removes
+  the selected one) and type its X / Y, then tap
   a saved **Target** button to get the range. The **Manual** button reveals
   X1 / Y1 fields for a one-off target; the last six manual entries per map
   come back as **recent** tiles, and the star on one saves it as a target.
@@ -25,9 +26,21 @@ Two screens, toggled by the **Edit / Done** button in the titlebar:
   file by id, so re-importing an updated file replaces what changed.
 - Readout also shows ΔX, ΔY (scaled) and a bearing (0° = +Y, clockwise).
 
-Everything lives in `localStorage`; nothing is bundled or sent anywhere. Map
-tiles are fetched from <https://wardogsmaps.builtbyzee.com> as you look around
-and kept by the service worker, so areas you have viewed work offline.
+Everything lives in `localStorage`; nothing is sent anywhere. Map tiles are
+fetched from <https://wardogsmaps.builtbyzee.com> as you look around and kept
+by the service worker, so areas you have viewed work offline.
+
+## Preset maps
+
+A new install starts with Bakurani, Ozeti and Zestafona and their shared
+targets, from the files in `src/data/`. Gun positions are left blank in the
+preset files: where the mortar sits is each player's own business. Each one is a map as the
+app exports it, so to change a preset: export the map from the app, overwrite
+its file, and bump `PRESETS_VERSION` in `src/lib/presets.ts`. The next build
+merges the changes into installs that already have the map (matched by id, or
+by image for maps made before presets existed): targets and positioned guns
+with a matching id are replaced, new ones are added, and the user's own
+targets are left alone. A preset target the user deleted comes back on a bump.
 
 ## Stack
 
@@ -49,8 +62,8 @@ Calibration, confirmed against landmarks on Ozeti and Bakurani: every map is
 northward. The 32k renders are 0.5 m per source pixel and are halved before
 tiling; Bakurani's 16k render is 1 m per pixel already, so all three end up as
 the same 16k pyramid (about 60 MB per map). Adding a map means dropping its
-`<name>_map.png` in the source folder, re-running the script and adding a line
-to `MAP_IMAGES`.
+`<name>_map.png` in the source folder, re-running the script, adding a line
+to `MAP_IMAGES` and a preset file for it under `src/data/`.
 
 Set `VITE_TILE_BASE` to point the dev build at a local copy of the tiles
 (the helper adds the CORS header the app needs; a plain `http.server` won't):
