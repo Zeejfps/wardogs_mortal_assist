@@ -22,7 +22,7 @@ export interface GameMap {
   name: string;
   /** Id of a built-in map image (see maps.ts) to draw under the markers. */
   image?: string;
-  /** Never empty: there is always a gun to type into. */
+  /** Empty until the user places or types a mortar. */
   guns: Gun[];
   locations: Location[];
 }
@@ -51,7 +51,7 @@ export function nextGunName(guns: Gun[]): string {
 }
 
 export function newMap(name: string, image?: string): GameMap {
-  const map: GameMap = { id: uid(), name, guns: [newGun('A')], locations: [] };
+  const map: GameMap = { id: uid(), name, guns: [], locations: [] };
   if (image) map.image = image;
   return map;
 }
@@ -77,6 +77,8 @@ export function parseLibrary(text: string): Library {
 /**
  * Normalise a decoded library. Also used on the locally stored copy, so a
  * library saved by an older build (single `mortar` per map) loads as one gun.
+ * Guns without a position are dropped: earlier builds gave every map a blank
+ * gun "A", and an unplaced gun is nothing but a pill with nothing behind it.
  */
 export function libraryFromJSON(raw: unknown): Library {
   if (!raw || typeof raw !== 'object') throw new Error('Not a maps file');
@@ -93,8 +95,9 @@ export function libraryFromJSON(raw: unknown): Library {
     const guns: Gun[] = rawGuns.map((g: unknown, i: number) => {
       const gg = (g ?? {}) as Partial<Gun>;
       return { id: str(gg.id) || uid(), name: str(gg.name) || String.fromCharCode(65 + (i % 26)), x: str(gg.x), y: str(gg.y) };
-    });
-    if (guns.length === 0) guns.push(newGun('A', str(mm.mortar?.x), str(mm.mortar?.y)));
+    }).filter((g) => g.x || g.y);
+    const legacy = newGun('A', str(mm.mortar?.x), str(mm.mortar?.y));
+    if (guns.length === 0 && (legacy.x || legacy.y)) guns.push(legacy);
     const map: GameMap = {
       id: str(mm.id) || uid(),
       name: str(mm.name) || 'Untitled',

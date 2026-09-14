@@ -2,7 +2,9 @@
   // The map panel: the linked image with the guns, saved targets and the
   // manual target drawn on it. A tap on a marker selects it, a tap anywhere
   // else puts the manual target there; a long press (or right-click) moves
-  // the active gun, which can also be dragged. Markers are not clickable
+  // the active gun, which can also be dragged. While the active gun has no
+  // position yet, a plain tap places the gun instead, so a fresh map starts
+  // with the mortar rather than a target measured from nowhere. Markers are not clickable
   // themselves: the tap is hit-tested here against a small radius, so the
   // browser's touch-target adjustment cannot pull a nearby tap onto one.
   // Leaflet owns the DOM inside the container, so the marker styles below are
@@ -12,7 +14,7 @@
   import 'leaflet/dist/leaflet.css';
   import { onMount, untrack } from 'svelte';
   import { crsFor, imageById, tileUrl, toLatLng, unitBounds, warmTiles, type MapImage } from './maps';
-  import { num } from './mortar';
+  import { isSet, num } from './mortar';
   import { store } from './store.svelte';
 
   /** How close (px) a tap must be to a marker's centre to pick it rather than place a target. */
@@ -36,10 +38,6 @@
       iconSize: [0, 0],
       iconAnchor: [0, 0],
     });
-  }
-
-  function isSet(x: string, y: string): boolean {
-    return Number.isFinite(parseFloat(x)) && Number.isFinite(parseFloat(y));
   }
 
   function show(img: MapImage | undefined, mapId: string): void {
@@ -100,7 +98,8 @@
       else if (hit?.kind === 'gun') store.selectGun(hit.id);
       else {
         const p = map!.containerPointToLatLng(pt);
-        store.setManual(p.lng, p.lat);
+        if (store.gunPlaced) store.setManual(p.lng, p.lat);
+        else store.setGun(p.lng, p.lat);
       }
     });
     map.on('contextmenu', (e) => {
@@ -148,7 +147,7 @@
 
     for (const g of m.guns) {
       if (!isSet(g.x, g.y)) continue;
-      const active = g.id === gun.id;
+      const active = g.id === gun?.id;
       // Only the active gun is a real (draggable) hit target; everything else
       // is picked by the tap hit-test above.
       const mk = L.marker(toLatLng(num(g.x), num(g.y)), {
@@ -197,7 +196,7 @@
   export function home(): void {
     if (!map) return;
     const g = store.gun;
-    if (isSet(g.x, g.y)) map.setView(toLatLng(num(g.x), num(g.y)), Math.max(map.getZoom(), 3));
+    if (g && isSet(g.x, g.y)) map.setView(toLatLng(num(g.x), num(g.y)), Math.max(map.getZoom(), 3));
     else map.fitBounds(unitBounds(imageById(store.map.image)!));
   }
 

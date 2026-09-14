@@ -10,7 +10,6 @@
 
   const map = $derived(store.map);
   const onlyMap = $derived(store.library.maps.length <= 1);
-  const onlyGun = $derived(map.guns.length <= 1);
 
   let status = $state('');
   let fileInput: HTMLInputElement;
@@ -108,7 +107,7 @@
                enterkeyhint="next" autocomplete="off" onfocus={(e) => e.currentTarget.select()} />
         <input class="num" type="text" inputmode="decimal" placeholder="0" bind:value={() => gun.y, setY(gun)}
                enterkeyhint="done" autocomplete="off" onfocus={(e) => e.currentTarget.select()} />
-        <button class="x" onclick={() => deleteGun(gun)} disabled={onlyGun} aria-label="Delete gun">×</button>
+        <button class="x" onclick={() => deleteGun(gun)} aria-label="Delete gun">×</button>
       </div>
     {/each}
     <button class="btn wide" onclick={() => store.addGun()}>+ Add gun</button>

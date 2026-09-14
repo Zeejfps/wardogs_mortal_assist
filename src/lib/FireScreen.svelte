@@ -9,7 +9,7 @@
   import ImagePicker from './ImagePicker.svelte';
   import MapView from './MapView.svelte';
   import { imageById } from './maps';
-  import { solve, fmt, num } from './mortar';
+  import { solve, fmt, isSet, num } from './mortar';
   import Version from './Version.svelte';
   import { store, type Recent } from './store.svelte';
 
@@ -21,6 +21,9 @@
   const targets = $derived(map.locations.filter((l) => l.name || l.x || l.y));
   const recents = $derived(store.mapRecents);
   const result = $derived(solve(store.pos));
+  // No number until both ends are placed: a range from a blank gun would be measured from 0,0.
+  const hasTarget = $derived(isSet(store.pos.tx, store.pos.ty));
+  const ready = $derived(store.gunPlaced && hasTarget);
   const manualMode = $derived(store.locationId == null);
   const hasTiles = $derived(targets.length + recents.length > 0);
   // Focus the target field on an empty map, unless the map panel is the
@@ -51,6 +54,7 @@
 
   // Drops the selected gun. A blank one goes without asking, as on the edit screen.
   function deleteGun(): void {
+    if (!gun) return;
     const blank = !gun.x && !gun.y;
     if (blank || confirm(`Delete gun "${gun.name}"?`)) store.deleteGun(gun.id);
   }
@@ -60,14 +64,17 @@
 <section class="result">
   <div class="range">
     <div class="label">
-      {#if store.location}To <b>{store.location.name || 'Unnamed'}</b>{:else}Range{/if}
+      {#if !store.gunPlaced}Place the mortar
+      {:else if !hasTarget}Pick a target
+      {:else if store.location}To <b>{store.location.name || 'Unnamed'}</b>
+      {:else}Range{/if}
     </div>
-    <div class="value">{fmt(result.dist)}<small>m</small></div>
+    <div class="value">{ready ? fmt(result.dist) : '—'}<small>m</small></div>
   </div>
   <div class="stats">
-    <span class="brg">Brg <b>{fmt(result.brg, 1)}°</b></span>
-    <span>ΔX <b>{fmt(result.dx)}</b></span>
-    <span>ΔY <b>{fmt(result.dy)}</b></span>
+    <span class="brg">Brg <b>{ready ? `${fmt(result.brg, 1)}°` : '—'}</b></span>
+    <span>ΔX <b>{ready ? fmt(result.dx) : '—'}</b></span>
+    <span>ΔY <b>{ready ? fmt(result.dy) : '—'}</b></span>
   </div>
 </section>
 
@@ -87,7 +94,11 @@
     {#if store.mapOpen}
       {#if image}
         <div class="canvas"><MapView bind:this={view} /></div>
-        <p class="hint tiny">Tap sets the target · hold (or drag the gun) moves the gun</p>
+        {#if store.gunPlaced}
+          <p class="hint tiny">Tap sets the target · hold (or drag the gun) moves the gun</p>
+        {:else}
+          <p class="hint tiny">Tap the map to place {#if gun}mortar <b>{gun.name}</b>{:else}the mortar{/if}</p>
+        {/if}
       {:else}
         <div class="row"><ImagePicker /></div>
         <p class="hint">Pick an image to tap targets straight on the map.</p>
@@ -98,20 +109,20 @@
   <section>
     <h2>Mortar</h2>
     <div class="row">
-      <Field label="X" bind:value={() => gun.x, (v) => (gun.x = v)}
+      <Field label="X" bind:value={() => gun?.x ?? '', (v) => store.typeGun('x', v)}
              bind:this={fields.mx} onenter={() => next('mx')} />
-      <Field label="Y" bind:value={() => gun.y, (v) => (gun.y = v)}
+      <Field label="Y" bind:value={() => gun?.y ?? '', (v) => store.typeGun('y', v)}
              bind:this={fields.my} onenter={() => next('my')} />
     </div>
     <div class="guns" role="tablist" aria-label="Gun position">
       {#each map.guns as g (g.id)}
-        <button class="pill" class:active={gun.id === g.id} role="tab"
-                aria-selected={gun.id === g.id} onclick={() => store.selectGun(g.id)}>
+        <button class="pill" class:active={gun?.id === g.id} role="tab"
+                aria-selected={gun?.id === g.id} onclick={() => store.selectGun(g.id)}>
           {g.name || '?'}
         </button>
       {/each}
       <button class="pill add" onclick={() => store.addGun()} aria-label="Add gun position">+</button>
-      {#if map.guns.length > 1}
+      {#if gun}
         <button class="pill add remove" onclick={deleteGun}
                 aria-label="Delete selected gun position" title="Delete selected gun">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"

@@ -1,0 +1,91 @@
+## RULE 1 - MAKE ILLEGAL STATES UNREPRESENTABLE, AND NEVER LIE TO THE COMPILER
+
+Given a choice, pick the type or API that makes a whole category of error
+impossible to write. Prefer a design the caller cannot misuse over one that is
+correct only while the caller remembers a rule.
+
+1a. Parse at every boundary; never assert across one.
+    JSON.parse, fetch responses, process.env, DB rows and request bodies enter
+    as any/unknown. Parse them at the edge with zod/valibot/typia and DERIVE the
+    type from the schema (z.infer). Never hand-write a type and `as` the payload
+    into it. A hand-rolled `decode(raw: unknown)` is fine too - what matters is
+    that the boundary function ACCEPTS unknown and validates, rather than
+    accepting a type it was handed on trust. TS's soundness gap lives here.
+
+1b. Write discriminated unions, not optional-field bags.
+      YES: {status:'loading'} | {status:'ok', data:T} | {status:'error', err:E}
+      NO:  {loading: boolean, data?: T, err?: E}   // 8 states, 5 are nonsense
+    Close every switch with assertNever(x: never) so a later variant breaks the
+    build at each call site instead of falling through.
+
+1c. Brand every ID type you introduce.
+      type UserId = string & { readonly __brand: unique symbol }
+    Zero runtime cost. TS is structurally typed, so UserId and OrgId as bare
+    strings are freely interchangeable - a genuinely common production bug.
+
+1d. Don't write `as`, `!`, or `any` - they are the bug class itself.
+    They are the exact points where Rule 1 is switched off. Reach for
+    `satisfies` (checks a literal without widening or asserting), a type guard,
+    or a parse. If you still need one, flag it in your reply (see 3a).
+
+
+## RULE 2 - STRUCTURE ABSTRACTIONS BY COUPLING, NOT BY SHAPE
+
+Where a unit sits in the dependency graph matters more than anything about its
+internals. Class-or-function is a syntactic choice and is not the lever.
+
+2a. Minimize fan-out, not file count.
+    What counts is how many distinct modules a file imports and how many import
+    it. Before adding an import, check the edge is actually needed; before
+    splitting a file, note that more files at the same edge count is neutral,
+    more edges is not. Use dependency-cruiser or madge to read the graph and
+    find cycles. Best form of this rule: encode the intended boundaries as
+    dependency-cruiser `forbidden` rules run in CI, so a violation fails the
+    build instead of waiting on review.
+
+2b. Never add a module-level mutable singleton or an ambient event emitter.
+    Implicit control flow and shared mutable global state are the two structures
+    that go wrong most often. In TS: `export const store = {...}` mutated from
+    anywhere, and `emitter.on('thing')` where the handler set isn't statically
+    knowable. Both defeat the type checker and the reader at once - pass the
+    dependency in instead.
+
+2c. Don't add structure you haven't been forced into.
+    Guessing the wrong axis of variation is a net cost - worse than none.
+      - No inheritance. Depth is a cost with no reliably demonstrated benefit,
+        and it's nearly moot in TS - structural typing already gives
+        substitutability without a hierarchy.
+      - No cohesion refactors. "This module does two things" is an aesthetic
+        complaint, not a defect prediction. Don't volunteer that split.
+      - No abstraction before the variation is in the code. Write the second
+        and third case, then factor. A `type` plus a function you can inline
+        later is cheaper to be wrong about than a hierarchy.
+    God Class is a coupling problem (see 2a), not a size problem.
+
+
+## RULE 3 - REVIEW THE TYPE BOUNDARIES FIRST
+
+Before handing back code you wrote or changed, re-read it in this order. The
+type system has already reviewed most of it; your attention belongs where it
+stopped.
+
+  1. Every `as`, `!`, `any`, `@ts-expect-error`, and unknown-cast you
+     introduced. These are the ONLY places the compiler stopped checking. Code
+     with none has already been mostly reviewed by the type system; code with
+     ten is where all the effort goes. Justify each in a comment or remove it
+     (see 1d).
+  2. Changed function signatures and exported types - non-local blast radius
+     that isn't visible in the code in front of you. Check the call sites.
+  3. New boundary crossings - a new fetch, env var read, JSON.parse, DB query,
+     or CLI/message payload. Each needs a parse, not an assertion (see 1a).
+  4. Everything else.
+
+3a. Report anything you hit at levels 1-3, rather than leaving the user to
+    find it.
+
+3b. Don't add barrel files (index.ts re-exports), or route new imports through
+    an existing one when the direct module path works.
+    Barrels create implicit fan-out: the dependency graph goes opaque, so level
+    2 above can't be checked by reading. A types-only barrel under
+    verbatimModuleSyntax is erased at build, so the cost there is review
+    opacity only, not bundle size.

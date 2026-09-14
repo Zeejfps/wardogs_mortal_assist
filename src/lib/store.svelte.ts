@@ -7,7 +7,7 @@ import {
   type GameMap, type Gun, type Library, type Location,
 } from './library';
 import { fmtUnit, imageByName } from './maps';
-import { num, type Position } from './mortar';
+import { isSet, num, type Position } from './mortar';
 import { PRESETS_VERSION, presetLibrary } from './presets';
 import { read, write } from './storage';
 
@@ -115,9 +115,16 @@ class Store {
     return this.library.maps.find((m) => m.id === this.mapId) ?? this.library.maps[0];
   }
 
-  get gun(): Gun {
+  /** The active gun, or null on a map with none yet. */
+  get gun(): Gun | null {
     const map = this.map;
-    return map.guns.find((g) => g.id === this.gunIds[map.id]) ?? map.guns[0];
+    return map.guns.find((g) => g.id === this.gunIds[map.id]) ?? map.guns[0] ?? null;
+  }
+
+  /** Whether the active gun exists and has a position. Until it does, a map tap places it. */
+  get gunPlaced(): boolean {
+    const g = this.gun;
+    return g != null && isSet(g.x, g.y);
   }
 
   get location(): Location | null {
@@ -135,8 +142,8 @@ class Store {
     const loc = this.location;
     const gun = this.gun;
     return {
-      mx: gun.x,
-      my: gun.y,
+      mx: gun?.x ?? '',
+      my: gun?.y ?? '',
       tx: loc ? loc.x : this.manual.tx,
       ty: loc ? loc.y : this.manual.ty,
     };
@@ -166,16 +173,17 @@ class Store {
   }
 
   addGun(): Gun {
-    const gun = newGun(nextGunName(this.map.guns));
-    this.map.guns.push(gun);
+    const guns = this.map.guns;
+    guns.push(newGun(nextGunName(guns)));
+    // Hand back the reactive entry, not the plain object pushed in, so
+    // writes made through it (a tap placing the gun) are seen by the UI.
+    const gun = guns[guns.length - 1];
     this.gunIds[this.mapId] = gun.id;
     return gun;
   }
 
-  /** The last gun on a map cannot be removed; there is always somewhere to type. */
   deleteGun(id: string): void {
     const map = this.map;
-    if (map.guns.length <= 1) return;
     map.guns = map.guns.filter((g) => g.id !== id);
     if (this.gunIds[map.id] === id) delete this.gunIds[map.id];
   }
@@ -218,11 +226,17 @@ class Store {
     this.manual = { tx: fmtUnit(x), ty: fmtUnit(y) };
   }
 
-  /** A long press or drag on the map: move the active gun there. */
+  /** A long press or drag on the map: move the active gun there, creating it on a map with none. */
   setGun(x: number, y: number): void {
-    const gun = this.gun;
+    const gun = this.gun ?? this.addGun();
     gun.x = fmtUnit(x);
     gun.y = fmtUnit(y);
+  }
+
+  /** Typing into a mortar field on the fire screen. The first keystroke on a map with no gun creates one. */
+  typeGun(field: 'x' | 'y', value: string): void {
+    const gun = this.gun ?? this.addGun();
+    gun[field] = value;
   }
 
   /** Load a recent entry back into the manual fields. */

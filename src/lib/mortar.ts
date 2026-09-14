@@ -37,6 +37,11 @@ export function coord(value: unknown): string {
 }
 
 /** Parse an input's text; anything that is not a finite number counts as 0. */
+/** Whether both coordinates of a point have been entered. */
+export function isSet(x: string, y: string): boolean {
+  return Number.isFinite(parseFloat(x)) && Number.isFinite(parseFloat(y));
+}
+
 export function num(value: string): number {
   const v = parseFloat(value);
   return Number.isFinite(v) ? v : 0;
