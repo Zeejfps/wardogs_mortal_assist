@@ -226,7 +226,7 @@
 
 <style>
   .map {
-    width: 100%; height: 100%; background: #0d0f12; border-radius: 6px; overflow: hidden;
+    width: 100%; height: 100%; background: #0d0f12; overflow: hidden;
     cursor: crosshair;
   }
   .map :global(.tiles) { image-rendering: auto; }

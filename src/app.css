@@ -31,14 +31,14 @@ html, body {
            env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
-/* Layout shared by both screens. */
+/* Layout shared by both screens: sections stack edge to edge, split by a divider line. */
 main {
   flex: 1; min-height: 0; overflow-y: auto;
-  display: flex; flex-direction: column; gap: 10px; padding: 12px;
+  display: flex; flex-direction: column;
 }
 section {
-  background: var(--panel); border: 1px solid var(--border);
-  border-radius: 8px; padding: 10px;
+  background: var(--panel); border-bottom: 1px solid var(--border);
+  padding: 10px;
 }
 section h2 {
   margin: 0 0 8px; font-size: 11px; font-weight: 600;
@@ -63,7 +63,6 @@ section h2 .tag {
 .btn.danger { color: var(--danger); }
 
 @media (pointer: coarse) {
-  main { gap: 12px; padding: 14px; }
   section { padding: 12px; }
   section h2 { font-size: 12px; }
   .btn { font-size: 15px; padding: 11px 14px; border-radius: 8px; }

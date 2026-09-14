@@ -172,7 +172,6 @@
   /* Pinned above the scrolling main, so it never moves or shrinks. */
   .result {
     flex: none; display: flex; align-items: center; justify-content: space-between; gap: 12px;
-    margin: 12px 12px 0;
     background: linear-gradient(180deg, var(--panel) 0%, var(--panel-2) 100%);
   }
   .result .label {
@@ -279,10 +278,10 @@
     -webkit-tap-highlight-color: transparent;
   }
   .tool:active { background: var(--border); }
-  .canvas { height: 300px; }
+  /* Negative margins pull the map out to the section edges. */
+  .canvas { height: 300px; margin: 0 -10px; }
 
   @media (pointer: coarse) {
-    .result { margin: 14px 14px 0; }
     .result .value { font-size: 52px; }
     .result .value small { font-size: 18px; }
     .result .stats { font-size: 14px; gap: 3px; }
@@ -306,6 +305,6 @@
     .hint { font-size: 13px; }
     .hint.tiny { font-size: 11px; }
     .tool { font-size: 13px; padding: 5px 10px; border-radius: 8px; }
-    .canvas { height: 42dvh; min-height: 220px; }
+    .canvas { height: 42dvh; min-height: 220px; margin: 0 -12px; }
   }
 </style>

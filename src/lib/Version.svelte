@@ -5,5 +5,5 @@
 <p class="version">Mortar Calc v{__APP_VERSION__}</p>
 
 <style>
-  .version { margin: 0; text-align: center; font-size: 11px; color: var(--muted); user-select: text; }
+  .version { margin: 0; padding: 10px; text-align: center; font-size: 11px; color: var(--muted); user-select: text; }
 </style>
