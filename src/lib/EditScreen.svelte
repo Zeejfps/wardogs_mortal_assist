@@ -6,8 +6,9 @@
   import { type Gun, type Location } from './library';
   import { coord } from './mortar';
   import Version from './Version.svelte';
-  import { store } from './store.svelte';
+  import { getStore } from './store.svelte';
 
+  const store = getStore();
   const map = $derived(store.map);
   const onlyMap = $derived(store.library.maps.length <= 1);
 
@@ -62,17 +63,16 @@
     status = (await store.exportAll()) ? 'Exported all maps' : '';
   }
 
-  async function onFile(e: Event): Promise<void> {
-    const input = e.currentTarget as HTMLInputElement;
-    const file = input.files?.[0];
+  async function onFile(): Promise<void> {
+    const file = fileInput.files?.[0];
     if (!file) return;
     try {
       const r = store.importText(await file.text());
       status = `Imported ${r.maps} new map${r.maps === 1 ? '' : 's'}, ${r.locations} target${r.locations === 1 ? '' : 's'}`;
     } catch (err) {
-      status = `Import failed: ${(err as Error).message}`;
+      status = `Import failed: ${err instanceof Error ? err.message : String(err)}`;
     } finally {
-      input.value = '';
+      fileInput.value = '';
     }
   }
 </script>

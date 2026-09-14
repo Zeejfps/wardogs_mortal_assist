@@ -9,21 +9,38 @@
   // browser's touch-target adjustment cannot pull a nearby tap onto one.
   // Leaflet owns the DOM inside the container, so the marker styles below are
   // global. The Leaflet map is rebuilt when the image changes, because the
-  // coordinate system is baked into it at construction.
+  // coordinate system is baked into it at construction; the map, its image,
+  // its overlay and its view key live and die together as one `shown` value,
+  // so there is never a map without an image or an overlay without a map.
   import L from 'leaflet';
   import 'leaflet/dist/leaflet.css';
   import { onMount, untrack } from 'svelte';
+  import type { GunId, LocationId, MapId } from './library';
   import { crsFor, imageById, tileUrl, toLatLng, unitBounds, warmTiles, type MapImage } from './maps';
   import { isSet, num } from './mortar';
-  import { store } from './store.svelte';
+  import { getStore } from './store.svelte';
+
+  const store = getStore();
 
   /** How close (px) a tap must be to a marker's centre to pick it rather than place a target. */
   const SNAP_PX = matchMedia('(pointer: coarse)').matches ? 12 : 9;
 
+  /** The Leaflet map currently built into the container, with everything that belongs to it. */
+  interface Shown {
+    /** Map and image, so relinking a map to another image starts fresh. */
+    key: string;
+    img: MapImage;
+    map: L.Map;
+    overlay: L.LayerGroup;
+  }
+
+  /** What a tap landed on, when it landed on a marker. */
+  type Hit = { kind: 'gun'; id: GunId } | { kind: 'target'; id: LocationId };
+
   let el: HTMLDivElement;
-  let map: L.Map | undefined;
-  let shown = '';
-  let overlay = L.layerGroup();
+  let shown: Shown | undefined;
+  /** Where the finger last went down, in container pixels; see the pointerdown handler. */
+  let down: L.Point | undefined;
   /** Where each map was last left, so switching back does not lose the spot. */
   const views = new Map<string, { center: L.LatLng; zoom: number }>();
 
@@ -40,19 +57,18 @@
     });
   }
 
-  function show(img: MapImage | undefined, mapId: string): void {
-    if (map) {
-      views.set(shown, { center: map.getCenter(), zoom: map.getZoom() });
-      map.remove();
-      map = undefined;
+  function show(img: MapImage | undefined, mapId: MapId): void {
+    if (shown) {
+      views.set(shown.key, { center: shown.map.getCenter(), zoom: shown.map.getZoom() });
+      shown.map.remove();
+      shown = undefined;
     }
+    down = undefined;
     if (!img) return;
-    // Keyed by map and image, so relinking a map to another image starts fresh.
-    shown = `${mapId}/${img.id}`;
-    const key = shown;
+    const key = `${mapId}/${img.id}`;
 
     const bounds = unitBounds(img);
-    map = L.map(el, {
+    const map = L.map(el, {
       crs: crsFor(img),
       minZoom: 0,
       maxZoom: img.maxZoom + 2,
@@ -80,70 +96,65 @@
       keepBuffer: 4,
       className: 'tiles',
     }).addTo(map);
-    overlay = L.layerGroup().addTo(map);
+    const overlay = L.layerGroup().addTo(map);
 
-    // Resolve taps where the finger went down, not where the click lands:
-    // tapping the map blurs a focused field, the keyboard closes and the page
-    // reflows in between, and Leaflet would read the click against the new
-    // layout. Leaflet only fires click/contextmenu for taps that did not
-    // drag, so the down point is the tap.
-    let down: L.Point | undefined;
-    L.DomEvent.on(el, 'pointerdown', (ev) => {
-      down = map?.mouseEventToContainerPoint(ev as MouseEvent);
-    });
+    // Leaflet only fires click/contextmenu for taps that did not drag, so the
+    // down point (recorded on the container in onMount) is the tap.
     map.on('click', (e) => {
       const pt = down ?? e.containerPoint;
-      const hit = nearest(pt);
+      const hit = nearest(map, pt);
       if (hit?.kind === 'target') store.selectLocation(hit.id);
       else if (hit?.kind === 'gun') store.selectGun(hit.id);
       else {
-        const p = map!.containerPointToLatLng(pt);
+        const p = map.containerPointToLatLng(pt);
         if (store.gunPlaced) store.setManual(p.lng, p.lat);
         else store.setGun(p.lng, p.lat);
       }
     });
     map.on('contextmenu', (e) => {
-      const p = map!.containerPointToLatLng(down ?? e.containerPoint);
+      const p = map.containerPointToLatLng(down ?? e.containerPoint);
       store.setGun(p.lng, p.lat);
     });
     map.on('moveend', () => {
-      if (map) views.set(key, { center: map.getCenter(), zoom: map.getZoom() });
+      views.set(key, { center: map.getCenter(), zoom: map.getZoom() });
     });
 
     const view = views.get(key);
     if (view) map.setView(view.center, view.zoom);
     else map.fitBounds(bounds);
-    warmTiles(img);
+    shown = { key, img, map, overlay };
+    warmTiles(img, store.warmedTiles);
     sync();
   }
 
   /** The gun or saved target whose centre is within SNAP_PX of a container point, nearest first. */
-  function nearest(pt: L.Point): { kind: 'gun' | 'target'; id: string } | undefined {
-    if (!map) return;
-    let best: { kind: 'gun' | 'target'; id: string } | undefined;
+  function nearest(map: L.Map, pt: L.Point): Hit | undefined {
+    let best: Hit | undefined;
     let bestD = SNAP_PX;
-    const consider = (kind: 'gun' | 'target', items: { id: string; x: string; y: string }[]) => {
+    function consider<Id>(items: { id: Id; x: string; y: string }[], hit: (id: Id) => Hit): void {
       for (const it of items) {
         if (!isSet(it.x, it.y)) continue;
-        const d = map!.latLngToContainerPoint(toLatLng(num(it.x), num(it.y))).distanceTo(pt);
+        const d = map.latLngToContainerPoint(toLatLng(num(it.x), num(it.y))).distanceTo(pt);
         if (d <= bestD) {
           bestD = d;
-          best = { kind, id: it.id };
+          best = hit(it.id);
         }
       }
-    };
-    consider('target', store.map.locations);
-    consider('gun', store.map.guns);
+    }
+    consider(store.map.locations, (id) => ({ kind: 'target', id }));
+    consider(store.map.guns, (id) => ({ kind: 'gun', id }));
     return best;
   }
 
   function sync(): void {
-    overlay.clearLayers();
-    if (!map) return;
+    // Read the store before bailing so the effect below always tracks it.
     const m = store.map;
     const gun = store.gun;
     const loc = store.location;
     const pos = store.pos;
+    if (!shown) return;
+    const { overlay } = shown;
+    overlay.clearLayers();
 
     for (const g of m.guns) {
       if (!isSet(g.x, g.y)) continue;
@@ -194,19 +205,29 @@
 
   /** Centre on the active gun, or on the whole map when the gun is not placed. */
   export function home(): void {
-    if (!map) return;
+    if (!shown) return;
+    const { map, img } = shown;
     const g = store.gun;
     if (g && isSet(g.x, g.y)) map.setView(toLatLng(num(g.x), num(g.y)), Math.max(map.getZoom(), 3));
-    else map.fitBounds(unitBounds(imageById(store.map.image)!));
+    else map.fitBounds(unitBounds(img));
   }
 
   onMount(() => {
-    const ro = new ResizeObserver(() => map?.invalidateSize());
+    // Resolve taps where the finger went down, not where the click lands:
+    // tapping the map blurs a focused field, the keyboard closes and the page
+    // reflows in between, and Leaflet would read the click against the new
+    // layout. Recorded on the container, which outlives any one Leaflet map.
+    const onDown = (ev: PointerEvent): void => {
+      down = shown?.map.mouseEventToContainerPoint(ev);
+    };
+    el.addEventListener('pointerdown', onDown);
+    const ro = new ResizeObserver(() => shown?.map.invalidateSize());
     ro.observe(el);
     return () => {
       ro.disconnect();
-      map?.remove();
-      map = undefined;
+      el.removeEventListener('pointerdown', onDown);
+      shown?.map.remove();
+      shown = undefined;
     };
   });
 

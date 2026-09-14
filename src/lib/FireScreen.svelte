@@ -11,8 +11,9 @@
   import { imageById } from './maps';
   import { solve, fmt, isSet, num } from './mortar';
   import Version from './Version.svelte';
-  import { store, type Recent } from './store.svelte';
+  import { getStore, type Recent } from './store.svelte';
 
+  const store = getStore();
   const map = $derived(store.map);
   const gun = $derived(store.gun);
   const image = $derived(imageById(map.image));
@@ -24,14 +25,15 @@
   // No number until both ends are placed: a range from a blank gun would be measured from 0,0.
   const hasTarget = $derived(isSet(store.pos.tx, store.pos.ty));
   const ready = $derived(store.gunPlaced && hasTarget);
-  const manualMode = $derived(store.locationId == null);
+  const manualMode = $derived(store.target.kind === 'manual');
   const hasTiles = $derived(targets.length + recents.length > 0);
   // Focus the target field on an empty map, unless the map panel is the
   // obvious place to tap: focusing would scroll it away and raise the keyboard.
   const focusTarget = $derived(!hasTiles && !(image && store.mapOpen));
 
   function matches(r: Recent): boolean {
-    return manualMode && num(r.x) === num(store.manual.tx) && num(r.y) === num(store.manual.ty);
+    const t = store.target;
+    return t.kind === 'manual' && num(r.x) === num(t.tx) && num(r.y) === num(t.ty);
   }
   // The Manual tile lights up only when no recent tile already does.
   const manualTileActive = $derived(manualMode && !recents.some(matches));
@@ -43,12 +45,12 @@
   // Enter moves to the next field: X -> Y -> X1 -> Y1 -> back to X1.
   function next(id: FieldId): void {
     const i = order.indexOf(id);
-    const to = i === order.length - 1 ? 'tx' : order[i + 1];
+    const to = order[i + 1] ?? 'tx';
     fields[to]?.focus();
   }
 
   function manual(): void {
-    store.selectLocation(null);
+    store.selectManual();
     fields.tx?.focus();
   }
 
@@ -147,7 +149,7 @@
     {#if hasTiles}
       <div class="grid">
         {#each targets as loc (loc.id)}
-          <button class="loc" class:active={store.locationId === loc.id}
+          <button class="loc" class:active={store.location?.id === loc.id}
                   onclick={() => store.selectLocation(loc.id)}>
             <span class="name">{loc.name || 'Unnamed'}</span>
             <span class="xy">{loc.x || '0'}, {loc.y || '0'}</span>

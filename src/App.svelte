@@ -3,7 +3,11 @@
   import FireScreen from './lib/FireScreen.svelte';
   import InstallBar from './lib/InstallBar.svelte';
   import MapPicker from './lib/MapPicker.svelte';
-  import { store } from './lib/store.svelte';
+  import { createStore, provideStore } from './lib/store.svelte';
+
+  // The one store, loaded from storage here and reached by every screen through context.
+  const store = createStore();
+  provideStore(store);
 
   // Two screens: 'fire' is the in-game view (tap a target, read the range),
   // 'edit' is where maps and targets are entered and shared.

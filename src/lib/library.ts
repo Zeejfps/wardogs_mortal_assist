@@ -1,8 +1,26 @@
 // The user's saved maps and locations, plus the JSON format used to share
 // them. Pure data code: no Svelte, no storage, so it is easy to test.
+import type { ImageId } from './maps';
+
+declare const brand: unique symbol;
+/** Ids are branded so a gun id cannot be handed to something wanting a map id. */
+export type MapId = string & { readonly [brand]: 'MapId' };
+export type GunId = string & { readonly [brand]: 'GunId' };
+export type LocationId = string & { readonly [brand]: 'LocationId' };
+
+// The single place each brand is minted; a brand is a compile-time tag on a string, so the cast is sound.
+export function mapId(s: string): MapId {
+  return s as MapId;
+}
+export function gunId(s: string): GunId {
+  return s as GunId;
+}
+export function locationId(s: string): LocationId {
+  return s as LocationId;
+}
 
 export interface Location {
-  id: string;
+  id: LocationId;
   name: string;
   /** Map units as typed, kept as strings so they round-trip exactly. */
   x: string;
@@ -11,17 +29,17 @@ export interface Location {
 
 /** A place the mortar is set up. Maps usually have one or two. */
 export interface Gun {
-  id: string;
+  id: GunId;
   name: string;
   x: string;
   y: string;
 }
 
 export interface GameMap {
-  id: string;
+  id: MapId;
   name: string;
   /** Id of a built-in map image (see maps.ts) to draw under the markers. */
-  image?: string;
+  image?: ImageId;
   /** Empty until the user places or types a mortar. */
   guns: Gun[];
   locations: Location[];
@@ -40,7 +58,7 @@ export function uid(): string {
 }
 
 export function newGun(name: string, x = '', y = ''): Gun {
-  return { id: uid(), name, x, y };
+  return { id: gunId(uid()), name, x, y };
 }
 
 /** Short default names for guns: A, B, C… then A2, B2… so pills stay narrow. */
@@ -50,14 +68,14 @@ export function nextGunName(guns: Gun[]): string {
   return n < 26 ? letter : `${letter}${Math.floor(n / 26) + 1}`;
 }
 
-export function newMap(name: string, image?: string): GameMap {
-  const map: GameMap = { id: uid(), name, guns: [], locations: [] };
+export function newMap(name: string, image?: ImageId): GameMap {
+  const map: GameMap = { id: mapId(uid()), name, guns: [], locations: [] };
   if (image) map.image = image;
   return map;
 }
 
 export function newLocation(name = '', x = '', y = ''): Location {
-  return { id: uid(), name, x, y };
+  return { id: locationId(uid()), name, x, y };
 }
 
 export function emptyLibrary(): Library {
@@ -67,6 +85,11 @@ export function emptyLibrary(): Library {
 /** Coordinate text from whatever was stored: numbers become their text, anything else blank. */
 export function str(v: unknown): string {
   return typeof v === 'string' ? v : typeof v === 'number' ? String(v) : '';
+}
+
+/** Property `key` of a decoded value, or undefined when it is not an object or has no such key. */
+export function field(raw: unknown, key: string): unknown {
+  return typeof raw === 'object' && raw !== null && key in raw ? Reflect.get(raw, key) : undefined;
 }
 
 /** Parse shared JSON, tolerating missing ids and numeric coordinates. Throws on garbage. */
@@ -81,33 +104,42 @@ export function parseLibrary(text: string): Library {
  * gun "A", and an unplaced gun is nothing but a pill with nothing behind it.
  */
 export function libraryFromJSON(raw: unknown): Library {
-  if (!raw || typeof raw !== 'object') throw new Error('Not a maps file');
-  const obj = raw as { version?: unknown; maps?: unknown };
-  if (typeof obj.version === 'number' && obj.version > 1) {
-    throw new Error(`Made by a newer version (format ${obj.version})`);
+  const version = field(raw, 'version');
+  if (typeof version === 'number' && version > 1) {
+    throw new Error(`Made by a newer version (format ${version})`);
   }
-  if (!Array.isArray(obj.maps)) throw new Error('Not a maps file');
+  const rawMaps = field(raw, 'maps');
+  if (!Array.isArray(rawMaps)) throw new Error('Not a maps file');
 
-  const maps: GameMap[] = obj.maps.map((m: unknown) => {
-    const mm = (m ?? {}) as Partial<GameMap> & { mortar?: { x?: unknown; y?: unknown } };
-    const locations = Array.isArray(mm.locations) ? mm.locations : [];
-    const rawGuns = Array.isArray(mm.guns) ? mm.guns : [];
-    const guns: Gun[] = rawGuns.map((g: unknown, i: number) => {
-      const gg = (g ?? {}) as Partial<Gun>;
-      return { id: str(gg.id) || uid(), name: str(gg.name) || String.fromCharCode(65 + (i % 26)), x: str(gg.x), y: str(gg.y) };
-    }).filter((g) => g.x || g.y);
-    const legacy = newGun('A', str(mm.mortar?.x), str(mm.mortar?.y));
+  const maps: GameMap[] = rawMaps.map((m: unknown): GameMap => {
+    const rawLocations = field(m, 'locations');
+    const rawGuns = field(m, 'guns');
+    const guns: Gun[] = (Array.isArray(rawGuns) ? rawGuns : [])
+      .map((g: unknown, i: number): Gun => ({
+        id: gunId(str(field(g, 'id')) || uid()),
+        name: str(field(g, 'name')) || String.fromCharCode(65 + (i % 26)),
+        x: str(field(g, 'x')),
+        y: str(field(g, 'y')),
+      }))
+      .filter((g) => g.x || g.y);
+    const mortar = field(m, 'mortar');
+    const legacy = newGun('A', str(field(mortar, 'x')), str(field(mortar, 'y')));
     if (guns.length === 0 && (legacy.x || legacy.y)) guns.push(legacy);
     const map: GameMap = {
-      id: str(mm.id) || uid(),
-      name: str(mm.name) || 'Untitled',
+      id: mapId(str(field(m, 'id')) || uid()),
+      name: str(field(m, 'name')) || 'Untitled',
       guns,
-      locations: locations.map((l: unknown) => {
-        const ll = (l ?? {}) as Partial<Location>;
-        return { id: str(ll.id) || uid(), name: str(ll.name), x: str(ll.x), y: str(ll.y) };
-      }),
+      locations: (Array.isArray(rawLocations) ? rawLocations : []).map((l: unknown): Location => ({
+        id: locationId(str(field(l, 'id')) || uid()),
+        name: str(field(l, 'name')),
+        x: str(field(l, 'x')),
+        y: str(field(l, 'y')),
+      })),
     };
-    if (str(mm.image)) map.image = str(mm.image);
+    const image = str(field(m, 'image'));
+    // Branded here rather than via maps.imageId() so this module keeps no runtime edge to maps.ts
+    // (and through it to Leaflet). A name no image has is harmless: imageById() returns undefined.
+    if (image) map.image = image as ImageId;
     return map;
   });
   return { version: 1, maps };
@@ -176,13 +208,14 @@ export function slug(name: string): string {
  */
 export async function exportFile(text: string, filename: string): Promise<boolean> {
   const file = new File([text], filename, { type: 'application/json' });
-  const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
-  if (nav.share && nav.canShare?.({ files: [file] })) {
+  // Both are in lib.dom but absent on older browsers, hence the runtime check.
+  const canShare = typeof navigator.canShare === 'function' && typeof navigator.share === 'function';
+  if (canShare && navigator.canShare({ files: [file] })) {
     try {
-      await nav.share({ files: [file], title: filename });
+      await navigator.share({ files: [file], title: filename });
       return true;
     } catch (e) {
-      if ((e as DOMException).name === 'AbortError') return false;
+      if (e instanceof DOMException && e.name === 'AbortError') return false;
       // Fall through to a plain download on any other failure.
     }
   }

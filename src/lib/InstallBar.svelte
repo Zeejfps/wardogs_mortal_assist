@@ -6,17 +6,11 @@
   // tell the user where the button is. Neither applies once it is installed.
   const DISMISSED = 'mortar.installDismissed';
 
-  // Chrome-only event, not in lib.dom.
-  interface BeforeInstallPromptEvent extends Event {
-    prompt(): Promise<void>;
-    userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
-  }
-
   const installed =
     matchMedia('(display-mode: standalone)').matches ||
-    (navigator as Navigator & { standalone?: boolean }).standalone === true;
+    ('standalone' in navigator && navigator.standalone === true);
 
-  let dismissed = $state(installed || read(DISMISSED, false));
+  let dismissed = $state(installed || read(DISMISSED) === true);
   let prompt = $state<BeforeInstallPromptEvent | null>(null);
 
   // iPadOS 13+ reports itself as a Mac, hence the touch-point check.
@@ -31,9 +25,9 @@
   const mode = $derived<Mode>(prompt ? 'prompt' : iosOtherBrowser ? 'ios-other' : ios ? 'ios' : null);
 
   $effect(() => {
-    const onPrompt = (e: Event) => {
+    const onPrompt = (e: BeforeInstallPromptEvent) => {
       e.preventDefault();
-      prompt = e as BeforeInstallPromptEvent;
+      prompt = e;
     };
     const onInstalled = () => dismiss(true);
     addEventListener('beforeinstallprompt', onPrompt);

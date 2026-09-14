@@ -1,11 +1,17 @@
 // localStorage can throw (private mode, blocked storage); the app must run
 // without it, so every access is guarded.
-export function read<T>(key: string, fallback: T): T {
+
+/**
+ * The stored JSON decoded, or null when the key is absent, storage is blocked
+ * or the text is not JSON. The caller parses the unknown into a type it wants;
+ * nothing here vouches for the shape.
+ */
+export function read(key: string): unknown {
   try {
     const raw = localStorage.getItem(key);
-    return raw == null ? fallback : (JSON.parse(raw) as T);
+    return raw == null ? null : JSON.parse(raw);
   } catch {
-    return fallback;
+    return null;
   }
 }
 

@@ -2,15 +2,22 @@
   // Which built-in image, if any, the current map is drawn on. Shared by the
   // edit screen and the fire screen's "no image" placeholder.
   import { MAP_IMAGES } from './maps';
-  import { store } from './store.svelte';
+  import { getStore } from './store.svelte';
 
+  const store = getStore();
   const map = $derived(store.map);
+
+  // The DOM hands back a plain string; anything but a known image (the "No image" option) clears it.
+  function pick(value: string): void {
+    const img = MAP_IMAGES.find((i) => i.id === value);
+    map.image = img?.id;
+  }
 </script>
 
 <select
   aria-label="Map image"
   value={map.image ?? ''}
-  onchange={(e) => (map.image = e.currentTarget.value || undefined)}
+  onchange={(e) => pick(e.currentTarget.value)}
 >
   <option value="">No image</option>
   {#each MAP_IMAGES as img (img.id)}

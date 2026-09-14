@@ -1,13 +1,21 @@
 <script lang="ts">
   // Native select: compact in the titlebar and gets the platform picker on
   // phones. Changing map is rare, so it does not need to be any bigger.
-  import { store } from './store.svelte';
+  import { getStore } from './store.svelte';
+
+  const store = getStore();
+
+  // The DOM hands back a plain string; only a map that actually exists is selected.
+  function pick(value: string): void {
+    const m = store.library.maps.find((m) => m.id === value);
+    if (m) store.selectMap(m.id);
+  }
 </script>
 
 <select
   aria-label="Map"
   value={store.mapId}
-  onchange={(e) => store.selectMap(e.currentTarget.value)}
+  onchange={(e) => pick(e.currentTarget.value)}
 >
   {#each store.library.maps as m (m.id)}
     <option value={m.id}>{m.name || 'Untitled'}</option>

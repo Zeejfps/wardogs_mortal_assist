@@ -7,4 +7,7 @@ import App from './App.svelte';
 // means a redeploy is fetched in the background and applied on the next load.
 registerSW({ immediate: true });
 
-export default mount(App, { target: document.getElementById('app')! });
+const target = document.getElementById('app');
+if (!target) throw new Error('index.html has no #app element');
+
+export default mount(App, { target });

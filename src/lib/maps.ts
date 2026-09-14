@@ -3,8 +3,17 @@
 // megabytes); this file is what ties a tile pyramid to game coordinates.
 import L from 'leaflet';
 
+declare const brand: unique symbol;
+/** Id of a built-in image, distinct from the map/gun/location ids in library.ts. */
+export type ImageId = string & { readonly [brand]: 'ImageId' };
+
+// The single place this brand is minted; a brand is a compile-time tag on a string, so the cast is sound.
+export function imageId(s: string): ImageId {
+  return s as ImageId;
+}
+
 export interface MapImage {
-  id: string;
+  id: ImageId;
   name: string;
   /** Game units across the square image; the origin is bottom-left, Y up. */
   units: number;
@@ -18,17 +27,17 @@ export interface MapImage {
  * Bakurani render 1 m, and all three tile down to the same 16k pyramid.
  */
 export const MAP_IMAGES: MapImage[] = [
-  { id: 'bakurani', name: 'Bakurani', units: 163.84, maxZoom: 6 },
-  { id: 'ozeti', name: 'Ozeti', units: 163.84, maxZoom: 6 },
-  { id: 'zesty', name: 'Zestafona', units: 163.84, maxZoom: 6 },
+  { id: imageId('bakurani'), name: 'Bakurani', units: 163.84, maxZoom: 6 },
+  { id: imageId('ozeti'), name: 'Ozeti', units: 163.84, maxZoom: 6 },
+  { id: imageId('zesty'), name: 'Zestafona', units: 163.84, maxZoom: 6 },
 ];
 
 /** Where the tiles live; override with VITE_TILE_BASE to test a local copy. */
+const tileBaseEnv: unknown = import.meta.env.VITE_TILE_BASE;
 export const TILE_BASE: string =
-  (import.meta.env.VITE_TILE_BASE as string | undefined)?.replace(/\/$/, '') ??
-  'https://wardogsmaps.builtbyzee.com';
+  typeof tileBaseEnv === 'string' ? tileBaseEnv.replace(/\/$/, '') : 'https://wardogsmaps.builtbyzee.com';
 
-export function imageById(id: string | undefined): MapImage | undefined {
+export function imageById(id: ImageId | undefined): MapImage | undefined {
   return id ? MAP_IMAGES.find((m) => m.id === id) : undefined;
 }
 
@@ -51,7 +60,7 @@ export function crsFor(img: MapImage): L.CRS {
   const s = 256 / img.units;
   return L.Util.extend({}, L.CRS.Simple, {
     transformation: new L.Transformation(s, 0, -s, 256),
-  }) as L.CRS;
+  });
 }
 
 export function unitBounds(img: MapImage): L.LatLngBounds {
@@ -67,14 +76,14 @@ export function fmtUnit(v: number): string {
   return (Math.round(v * 100) / 100).toString();
 }
 
-const warmed = new Set<string>();
-
 /**
  * Pull the shallow zoom levels through the service worker once per session
  * so the whole map is there at a glance offline; deeper tiles are cached as
  * they are viewed. About 340 small requests (3 MB), fired and forgotten.
+ * `warmed` is the caller's record of which images are done (the store owns
+ * it), so this module holds no state of its own.
  */
-export function warmTiles(img: MapImage, upToZoom = 4): void {
+export function warmTiles(img: MapImage, warmed: Set<ImageId>, upToZoom = 4): void {
   if (warmed.has(img.id) || !navigator.onLine) return;
   warmed.add(img.id);
   const tpl = tileUrl(img);
