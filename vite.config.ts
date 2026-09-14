@@ -1,8 +1,27 @@
+import { execSync } from 'node:child_process';
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { VitePWA } from 'vite-plugin-pwa';
 
+/**
+ * The version shown in the app, so a bug report can say which build it came
+ * from. Releases are git tags, so the tag is the source of truth: the deploy
+ * workflow has it in GITHUB_REF_NAME, and a local build asks git, which
+ * gives "2.5.0-3-g1efbb6a-dirty" for anything past the last tag.
+ */
+function appVersion(): string {
+  const ref = process.env.GITHUB_REF_NAME;
+  if (ref && /^v\d/.test(ref)) return ref.slice(1);
+  try {
+    return execSync('git describe --tags --always --dirty', { stdio: ['ignore', 'pipe', 'ignore'] })
+      .toString().trim().replace(/^v/, '');
+  } catch {
+    return 'dev';
+  }
+}
+
 export default defineConfig({
+  define: { __APP_VERSION__: JSON.stringify(appVersion()) },
   plugins: [
     svelte(),
     VitePWA({

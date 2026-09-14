@@ -10,6 +10,7 @@
   import MapView from './MapView.svelte';
   import { imageById } from './maps';
   import { solve, fmt, num } from './mortar';
+  import Version from './Version.svelte';
   import { store, type Recent } from './store.svelte';
 
   const map = $derived(store.map);
@@ -164,6 +165,7 @@
       <p class="hint">No saved targets for this map yet. Tap <b>Edit</b> to add some.</p>
     {/if}
   </section>
+  <Version />
 </main>
 
 <style>

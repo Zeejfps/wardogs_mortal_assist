@@ -5,6 +5,7 @@
   import ImagePicker from './ImagePicker.svelte';
   import { type Gun, type Location } from './library';
   import { coord } from './mortar';
+  import Version from './Version.svelte';
   import { store } from './store.svelte';
 
   const map = $derived(store.map);
@@ -149,6 +150,7 @@
     {#if status}<p class="status">{status}</p>{/if}
     <p class="hint">Exports a JSON file you can send to a friend. Importing merges by id, so re-importing an updated file replaces what changed.</p>
   </section>
+  <Version />
 </main>
 
 <style>
