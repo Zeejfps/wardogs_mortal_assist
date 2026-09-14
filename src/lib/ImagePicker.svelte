@@ -20,12 +20,12 @@
 
 <style>
   select {
-    min-width: 0; background: var(--bg); color: var(--text);
-    border: 1px solid var(--border); border-radius: 6px;
-    padding: 7px 9px; font: inherit; font-size: 15px; outline: none;
+    min-width: 0; background-color: var(--bg); color: var(--text);
+    border: 1px solid var(--border);
+    padding: 7px 26px 7px 9px; font: inherit; font-size: 15px; outline: none;
   }
   select:focus { border-color: var(--accent); }
   @media (pointer: coarse) {
-    select { font-size: 17px; padding: 11px 10px; border-radius: 8px; }
+    select { font-size: 17px; padding: 11px 28px 11px 10px; background-position: right 10px center; }
   }
 </style>

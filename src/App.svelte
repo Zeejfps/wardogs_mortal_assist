@@ -48,7 +48,7 @@
   }
   .mode {
     background: var(--panel-2); color: var(--text);
-    border: 1px solid var(--border); border-radius: 6px;
+    border: 1px solid var(--border);
     padding: 4px 10px; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
   }
   .mode.active { color: var(--accent); border-color: var(--accent); background: var(--accent-dim); }
@@ -56,6 +56,6 @@
   @media (pointer: coarse) {
     .titlebar { padding: 12px 14px; }
     .titlebar .title { font-size: 13px; }
-    .mode { font-size: 14px; padding: 7px 12px; border-radius: 8px; }
+    .mode { font-size: 14px; padding: 7px 12px; }
   }
 </style>

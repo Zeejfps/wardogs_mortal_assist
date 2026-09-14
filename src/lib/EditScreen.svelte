@@ -161,7 +161,7 @@
 
   input.text, input.num {
     min-width: 0; background: var(--bg); color: var(--text);
-    border: 1px solid var(--border); border-radius: 6px;
+    border: 1px solid var(--border);
     padding: 7px 9px; font: inherit; font-size: 15px; outline: none;
     transition: border-color 0.12s;
   }
@@ -175,7 +175,7 @@
   .head { font-size: 11px; color: var(--muted); padding: 0 2px 4px; }
   .loc { margin-bottom: 6px; }
   .loc .x {
-    width: 32px; height: 32px; padding: 0; border-radius: 6px;
+    width: 32px; height: 32px; padding: 0;
     background: transparent; color: var(--muted); border: 1px solid transparent;
     font-size: 18px; line-height: 1; cursor: pointer;
   }
@@ -188,7 +188,7 @@
   .hint { margin: 8px 0 0; font-size: 11px; color: var(--muted); }
 
   @media (pointer: coarse) {
-    input.text, input.num { font-size: 17px; padding: 11px 10px; border-radius: 8px; }
+    input.text, input.num { font-size: 17px; padding: 11px 10px; }
     .head, .loc { grid-template-columns: 2fr 1fr 1fr 40px; gap: 8px; }
     .loc { margin-bottom: 8px; }
     .loc .x { width: 40px; height: 44px; font-size: 22px; }

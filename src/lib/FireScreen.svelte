@@ -203,7 +203,7 @@
   .pill {
     flex: none; min-width: 36px; height: 28px; padding: 0 12px;
     background: var(--panel-2); color: var(--muted);
-    border: 1px solid var(--border); border-radius: 999px;
+    border: 1px solid var(--border);
     font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
     max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     -webkit-tap-highlight-color: transparent;
@@ -222,7 +222,7 @@
     display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px;
     padding: 8px 10px; text-align: left;
     background: var(--panel-2); color: var(--text);
-    border: 1px solid var(--border); border-radius: 8px;
+    border: 1px solid var(--border);
     font: inherit; cursor: pointer; transition: border-color 0.12s, background 0.12s;
     -webkit-tap-highlight-color: transparent;
   }
@@ -256,7 +256,7 @@
   }
   .star, .del {
     width: 26px; height: 22px; padding: 0;
-    background: transparent; color: var(--muted); border: 1px solid transparent; border-radius: 6px;
+    background: transparent; color: var(--muted); border: 1px solid transparent;
     font-size: 14px; line-height: 1; cursor: pointer; -webkit-tap-highlight-color: transparent;
   }
   .del { font-size: 17px; }
@@ -272,7 +272,7 @@
   .mapcard .tools { display: flex; gap: 6px; }
   .tool {
     background: var(--panel-2); color: var(--muted);
-    border: 1px solid var(--border); border-radius: 6px;
+    border: 1px solid var(--border);
     padding: 2px 8px; font: inherit; font-size: 11px; font-weight: 600; cursor: pointer;
     letter-spacing: normal; text-transform: none; line-height: 1.4;
     -webkit-tap-highlight-color: transparent;
@@ -286,16 +286,16 @@
     .result .value small { font-size: 18px; }
     .result .stats { font-size: 14px; gap: 3px; }
     .result .stats .brg { font-size: 17px; }
-    .btn.keep { padding: 12px 14px; font-size: 19px; border-radius: 8px; }
+    .btn.keep { padding: 12px 14px; font-size: 19px; }
     .guns, .grid { margin-top: 12px; }
     .guns { gap: 8px; }
-    .pill { height: 36px; font-size: 14px; padding: 0 14px; min-width: 44px; max-width: 110px; border-radius: 10px; }
+    .pill { height: 36px; font-size: 14px; padding: 0 14px; min-width: 44px; max-width: 110px; }
     .pill.add { min-width: 38px; }
     .grid {
       gap: 10px; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
       grid-auto-rows: 64px;
     }
-    .loc { padding: 10px 12px; border-radius: 10px; }
+    .loc { padding: 10px 12px; }
     .loc.recent { padding: 0; }
     .loc.recent .hit { padding: 10px 38px 10px 12px; }
     .loc .name { font-size: 16px; }
@@ -304,7 +304,7 @@
     .del { font-size: 20px; }
     .hint { font-size: 13px; }
     .hint.tiny { font-size: 11px; }
-    .tool { font-size: 13px; padding: 5px 10px; border-radius: 8px; }
+    .tool { font-size: 13px; padding: 5px 10px; }
     .canvas { height: 42dvh; min-height: 220px; margin: 0 -12px; }
   }
 </style>

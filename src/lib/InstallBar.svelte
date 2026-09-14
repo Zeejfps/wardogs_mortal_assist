@@ -87,7 +87,7 @@
   .install p { margin: 0; flex: 1; }
   .install b { color: var(--accent); }
   .install button {
-    flex: none; border: 0; border-radius: 6px; cursor: pointer;
+    flex: none; border: 0; cursor: pointer;
     font: inherit; font-weight: 600; padding: 8px 12px;
     background: var(--accent); color: #14171c;
   }

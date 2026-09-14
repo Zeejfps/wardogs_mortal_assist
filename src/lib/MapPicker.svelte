@@ -16,13 +16,13 @@
 
 <style>
   select {
-    max-width: 45vw; background: var(--panel-2); color: var(--text);
-    border: 1px solid var(--border); border-radius: 6px;
-    padding: 4px 8px; font: inherit; font-size: 12px; font-weight: 600;
+    max-width: 45vw; background-color: var(--panel-2); color: var(--text);
+    border: 1px solid var(--border);
+    padding: 4px 24px 4px 8px; font: inherit; font-size: 12px; font-weight: 600;
     outline: none;
   }
   select:focus { border-color: var(--accent); }
   @media (pointer: coarse) {
-    select { font-size: 14px; padding: 7px 10px; border-radius: 8px; }
+    select { font-size: 14px; padding: 7px 26px 7px 10px; background-position: right 10px center; }
   }
 </style>

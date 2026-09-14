@@ -11,6 +11,15 @@
 }
 
 * { box-sizing: border-box; }
+button, input, select { border-radius: 0; }
+
+/* Selects draw their own chevron so the padding around it is ours, not the browser's. */
+select {
+  appearance: none; -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238b93a1' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 8px center;
+  padding-right: 24px; text-overflow: ellipsis;
+}
 
 html, body {
   margin: 0; height: 100%;
@@ -47,13 +56,13 @@ section h2 {
 }
 section h2 .tag {
   font-size: 10px; color: var(--accent); background: var(--accent-dim);
-  padding: 1px 6px; border-radius: 999px; letter-spacing: 0.04em;
+  padding: 1px 6px; letter-spacing: 0.04em;
 }
 .row { display: flex; gap: 8px; }
 
 .btn {
   background: var(--panel-2); color: var(--text);
-  border: 1px solid var(--border); border-radius: 6px;
+  border: 1px solid var(--border);
   padding: 7px 12px; font: inherit; font-size: 13px; font-weight: 600;
   cursor: pointer; white-space: nowrap;
   -webkit-tap-highlight-color: transparent;
@@ -65,5 +74,5 @@ section h2 .tag {
 @media (pointer: coarse) {
   section { padding: 12px; }
   section h2 { font-size: 12px; }
-  .btn { font-size: 15px; padding: 11px 14px; border-radius: 8px; }
+  .btn { font-size: 15px; padding: 11px 14px; }
 }
