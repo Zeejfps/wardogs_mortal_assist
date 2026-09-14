@@ -8,12 +8,15 @@ offline.
 
 Two screens, toggled by the **Edit / Done** button in the titlebar:
 
-- **Fire** (default) – the in-game view. Pick the map from the titlebar dropdown,
-  type the **Mortar X / Y** gun position (saved per map), then tap a saved
-  **Target** button to get the range. The **Manual** button reveals X1 / Y1
-  fields for a one-off target. Enter jumps to the next field.
-- **Edit** – rename or add maps, enter targets (name, X1, Y1; Enter walks
-  name -> X -> Y -> new row), and share. **Export** hands you a JSON file via the
+- **Fire** (default) – the in-game view. The range readout is pinned at the
+  top. Pick the map from the titlebar dropdown, pick a gun position from the
+  pills in the **Mortar** header (**+** adds one) and type its X / Y, then tap
+  a saved **Target** button to get the range. The **Manual** button reveals
+  X1 / Y1 fields for a one-off target; the last six manual entries per map
+  come back as **recent** tiles, and the star on one saves it as a target.
+  The target grid is two rows tall and scrolls. Enter jumps to the next field.
+- **Edit** – rename or add maps, name gun positions, enter targets (name,
+  X1, Y1; Enter walks name -> X -> Y -> new row), and share. **Export** hands you a JSON file via the
   share sheet on phones or a download elsewhere; **Import** merges a friend's
   file by id, so re-importing an updated file replaces what changed.
 - Readout also shows ΔX, ΔY (scaled) and a bearing (0° = +Y, clockwise).

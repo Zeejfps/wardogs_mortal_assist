@@ -2,15 +2,25 @@
   // Data entry and sharing. Kept off the fire screen so in-game use is just
   // tapping targets. Enter walks name -> X -> Y -> a fresh row for fast typing.
   import { tick } from 'svelte';
-  import type { Location } from './library';
+  import { str, type Gun, type Location } from './library';
   import { store } from './store.svelte';
 
   const map = $derived(store.map);
   const onlyMap = $derived(store.library.maps.length <= 1);
+  const onlyGun = $derived(map.guns.length <= 1);
 
   let status = $state('');
   let fileInput: HTMLInputElement;
   const refs: Record<string, HTMLInputElement> = {};
+
+  // Number inputs bind as numbers (null when blank); coordinates are kept as
+  // the typed strings so they round-trip exactly, hence the function bindings.
+  function setX(o: { x: string }): (v: unknown) => void {
+    return (v) => (o.x = str(v));
+  }
+  function setY(o: { y: string }): (v: unknown) => void {
+    return (v) => (o.y = str(v));
+  }
 
   async function addLocation(): Promise<void> {
     const loc = store.addLocation();
@@ -24,6 +34,11 @@
     if (col === 'name') refs[`${loc.id}:x`]?.focus();
     else if (col === 'x') refs[`${loc.id}:y`]?.focus();
     else void addLocation();
+  }
+
+  function deleteGun(gun: Gun): void {
+    const blank = !gun.x && !gun.y;
+    if (blank || confirm(`Delete gun "${gun.name}"?`)) store.deleteGun(gun.id);
   }
 
   function deleteLocation(loc: Location): void {
@@ -73,6 +88,26 @@
   </section>
 
   <section>
+    <h2>Guns <span class="tag">{map.guns.length}</span></h2>
+    <div class="head">
+      <span>Name</span><span>X</span><span>Y</span><span></span>
+    </div>
+    {#each map.guns as gun (gun.id)}
+      <div class="loc">
+        <input class="text" type="text" placeholder="A" bind:value={gun.name}
+               enterkeyhint="next" autocomplete="off" maxlength="12" />
+        <input class="num" type="number" step="any" inputmode="decimal" placeholder="0" bind:value={() => gun.x, setX(gun)}
+               enterkeyhint="next" autocomplete="off" onfocus={(e) => e.currentTarget.select()} />
+        <input class="num" type="number" step="any" inputmode="decimal" placeholder="0" bind:value={() => gun.y, setY(gun)}
+               enterkeyhint="done" autocomplete="off" onfocus={(e) => e.currentTarget.select()} />
+        <button class="x" onclick={() => deleteGun(gun)} disabled={onlyGun} aria-label="Delete gun">×</button>
+      </div>
+    {/each}
+    <button class="btn wide" onclick={() => store.addGun()}>+ Add gun</button>
+    <p class="hint">Short names work best: they show as pills on the fire screen.</p>
+  </section>
+
+  <section>
     <h2>Targets <span class="tag">{map.locations.length}</span></h2>
     {#if map.locations.length}
       <div class="head">
@@ -84,10 +119,10 @@
         <input class="text" type="text" placeholder="Name" bind:value={loc.name}
                bind:this={refs[`${loc.id}:name`]} onkeydown={(e) => onEnter(e, loc, 'name')}
                enterkeyhint="next" autocomplete="off" />
-        <input class="num" type="number" step="any" inputmode="decimal" placeholder="0" bind:value={loc.x}
+        <input class="num" type="number" step="any" inputmode="decimal" placeholder="0" bind:value={() => loc.x, setX(loc)}
                bind:this={refs[`${loc.id}:x`]} onkeydown={(e) => onEnter(e, loc, 'x')}
                enterkeyhint="next" autocomplete="off" onfocus={(e) => e.currentTarget.select()} />
-        <input class="num" type="number" step="any" inputmode="decimal" placeholder="0" bind:value={loc.y}
+        <input class="num" type="number" step="any" inputmode="decimal" placeholder="0" bind:value={() => loc.y, setY(loc)}
                bind:this={refs[`${loc.id}:y`]} onkeydown={(e) => onEnter(e, loc, 'y')}
                enterkeyhint="done" autocomplete="off" onfocus={(e) => e.currentTarget.select()} />
         <button class="x" onclick={() => deleteLocation(loc)} aria-label="Delete target">×</button>
@@ -135,6 +170,7 @@
     font-size: 18px; line-height: 1; cursor: pointer;
   }
   .loc .x:hover, .loc .x:active { color: var(--danger); border-color: var(--border); }
+  .loc .x:disabled { opacity: 0.3; cursor: default; color: var(--muted); border-color: transparent; }
 
   .btn.wide { width: 100%; margin-top: 4px; }
 

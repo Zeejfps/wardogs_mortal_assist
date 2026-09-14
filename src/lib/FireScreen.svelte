@@ -1,48 +1,95 @@
 <script lang="ts">
-  // In-game view. Targets are big buttons so swapping between them is one
-  // tap; the gun position stays editable because it moves during a match.
+  // In-game view. The answer sits at the top at a fixed size so nothing added
+  // below can ever squeeze it. Each card below is inputs first, then the quick
+  // switches under them: gun pills on the mortar card, target tiles on the
+  // target card. Tiles fill the pick into the fields; typing over a saved
+  // target turns it into a manual entry rather than editing the target.
   import Field from './Field.svelte';
-  import { solve, fmt } from './mortar';
-  import { store } from './store.svelte';
+  import { solve, fmt, num } from './mortar';
+  import { store, type Recent } from './store.svelte';
 
   const map = $derived(store.map);
+  const gun = $derived(store.gun);
   // A row left blank on the edit screen is not a target yet.
   const targets = $derived(map.locations.filter((l) => l.name || l.x || l.y));
+  const recents = $derived(store.mapRecents);
   const result = $derived(solve(store.pos));
   const manualMode = $derived(store.locationId == null);
+  const hasTiles = $derived(targets.length + recents.length > 0);
+
+  function matches(r: Recent): boolean {
+    return manualMode && num(r.x) === num(store.manual.tx) && num(r.y) === num(store.manual.ty);
+  }
+  // The Manual tile lights up only when no recent tile already does.
+  const manualTileActive = $derived(manualMode && !recents.some(matches));
 
   type FieldId = 'mx' | 'my' | 'tx' | 'ty';
   const fields: Partial<Record<FieldId, Field>> = {};
+  const order: FieldId[] = ['mx', 'my', 'tx', 'ty'];
 
   // Enter moves to the next field: X -> Y -> X1 -> Y1 -> back to X1.
   function next(id: FieldId): void {
-    const order: FieldId[] = manualMode ? ['mx', 'my', 'tx', 'ty'] : ['mx', 'my'];
+    if (id === 'ty') store.commitManual();
     const i = order.indexOf(id);
-    const to = i === order.length - 1 ? (manualMode ? 'tx' : 'mx') : order[i + 1];
+    const to = i === order.length - 1 ? 'tx' : order[i + 1];
     fields[to]?.focus();
   }
 
   function manual(): void {
     store.selectLocation(null);
-    // The fields mount after the state change; focus once they exist.
-    setTimeout(() => fields.tx?.focus());
+    fields.tx?.focus();
+  }
+
+  function promote(e: Event, r: Recent): void {
+    e.stopPropagation();
+    store.promoteRecent(r);
   }
 </script>
 
+<section class="result">
+  <div class="range">
+    <div class="label">
+      {#if store.location}To <b>{store.location.name || 'Unnamed'}</b>{:else}Range{/if}
+    </div>
+    <div class="value">{fmt(result.dist)}<small>m</small></div>
+  </div>
+  <div class="stats">
+    <span class="brg">Brg <b>{fmt(result.brg, 1)}°</b></span>
+    <span>ΔX <b>{fmt(result.dx)}</b></span>
+    <span>ΔY <b>{fmt(result.dy)}</b></span>
+  </div>
+</section>
+
 <main>
   <section>
-    <h2>Mortar <span class="tag">saved</span></h2>
+    <h2>Mortar</h2>
     <div class="row">
-      <Field label="X" bind:value={() => map.mortar.x, (v) => (map.mortar.x = v)}
+      <Field label="X" bind:value={() => gun.x, (v) => (gun.x = v)}
              bind:this={fields.mx} onenter={() => next('mx')} />
-      <Field label="Y" bind:value={() => map.mortar.y, (v) => (map.mortar.y = v)}
+      <Field label="Y" bind:value={() => gun.y, (v) => (gun.y = v)}
              bind:this={fields.my} onenter={() => next('my')} />
+    </div>
+    <div class="guns" role="tablist" aria-label="Gun position">
+      {#each map.guns as g (g.id)}
+        <button class="pill" class:active={gun.id === g.id} role="tab"
+                aria-selected={gun.id === g.id} onclick={() => store.selectGun(g.id)}>
+          {g.name || '?'}
+        </button>
+      {/each}
+      <button class="pill add" onclick={() => store.addGun()} aria-label="Add gun position">+</button>
     </div>
   </section>
 
   <section>
     <h2>Target</h2>
-    {#if targets.length}
+    <div class="row">
+      <Field label="X1" bind:value={() => store.pos.tx, (v) => store.typeTarget('tx', v)}
+             bind:this={fields.tx} onenter={() => next('tx')} onblur={() => store.commitManual()}
+             autofocus={!hasTiles} />
+      <Field label="Y1" bind:value={() => store.pos.ty, (v) => store.typeTarget('ty', v)}
+             bind:this={fields.ty} onenter={() => next('ty')} onblur={() => store.commitManual()} />
+    </div>
+    {#if hasTiles}
       <div class="grid">
         {#each targets as loc (loc.id)}
           <button class="loc" class:active={store.locationId === loc.id}
@@ -51,45 +98,75 @@
             <span class="xy">{loc.x || '0'}, {loc.y || '0'}</span>
           </button>
         {/each}
-        <button class="loc other" class:active={manualMode} onclick={manual}>
+        <button class="loc other" class:active={manualTileActive} onclick={manual}>
           <span class="name">Manual</span>
           <span class="xy">type X1, Y1</span>
         </button>
+        {#each recents as r (`${r.x},${r.y}`)}
+          <div class="loc recent" class:active={matches(r)}>
+            <button class="hit" onclick={() => store.useRecent(r)}>
+              <span class="name">{r.x}, {r.y}</span>
+              <span class="xy">recent</span>
+            </button>
+            <button class="star" onclick={(e) => promote(e, r)}
+                    aria-label="Save as target" title="Save as target">★</button>
+          </div>
+        {/each}
       </div>
     {:else}
       <p class="hint">No saved targets for this map yet. Tap <b>Edit</b> to add some.</p>
     {/if}
-    {#if manualMode}
-      <div class="row" class:spaced={targets.length > 0}>
-        <Field label="X1" bind:value={store.manual.tx} bind:this={fields.tx}
-               onenter={() => next('tx')} autofocus={targets.length === 0} />
-        <Field label="Y1" bind:value={store.manual.ty} bind:this={fields.ty}
-               onenter={() => next('ty')} />
-      </div>
-    {/if}
-  </section>
-
-  <section class="result">
-    <div class="label">
-      {#if store.location}Distance to <b>{store.location.name || 'Unnamed'}</b>{:else}Distance{/if}
-    </div>
-    <div class="value">{fmt(result.dist)}<small>m</small></div>
-    <div class="sub">
-      <span>ΔX <b>{fmt(result.dx)}</b></span>
-      <span>ΔY <b>{fmt(result.dy)}</b></span>
-      <span>Brg <b>{fmt(result.brg, 1)}°</b></span>
-    </div>
   </section>
 </main>
 
 <style>
+  /* Pinned above the scrolling main, so it never moves or shrinks. */
+  .result {
+    flex: none; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    margin: 12px 12px 0;
+    background: linear-gradient(180deg, var(--panel) 0%, var(--panel-2) 100%);
+  }
+  .result .label {
+    font-size: 11px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .result .label b { color: var(--text); }
+  .result .range { min-width: 0; }
+  .result .value {
+    font-size: 40px; font-weight: 700; line-height: 1.05;
+    color: var(--accent); font-variant-numeric: tabular-nums;
+  }
+  .result .value small { font-size: 15px; font-weight: 500; color: var(--muted); margin-left: 4px; }
+  .result .stats {
+    flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
+    font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums;
+  }
+  .result .stats b { color: var(--text); font-weight: 600; }
+  .result .stats .brg { font-size: 14px; }
+  .result .stats .brg b { color: var(--accent); }
+
+  /* Quick switches sit under the fields on both cards. */
+  .guns, .grid { margin-top: 10px; }
+  .guns { display: flex; flex-wrap: wrap; gap: 6px; }
+  .pill {
+    flex: none; min-width: 36px; height: 28px; padding: 0 12px;
+    background: var(--panel-2); color: var(--muted);
+    border: 1px solid var(--border); border-radius: 999px;
+    font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+    max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .pill.active { color: var(--accent); border-color: var(--accent); background: var(--accent-dim); }
+  .pill.add { min-width: 30px; padding: 0 9px; border-style: dashed; }
+
   .grid {
     display: grid; gap: 8px;
     grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    grid-auto-rows: 52px;
   }
   .loc {
-    display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
-    min-height: 52px; padding: 8px 10px; text-align: left;
+    display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px;
+    padding: 8px 10px; text-align: left;
     background: var(--panel-2); color: var(--text);
     border: 1px solid var(--border); border-radius: 8px;
     font: inherit; cursor: pointer; transition: border-color 0.12s, background 0.12s;
@@ -100,6 +177,7 @@
   .loc .name {
     font-weight: 600; font-size: 14px; line-height: 1.2;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;
+    font-variant-numeric: tabular-nums;
   }
   .loc .xy { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
   .loc.active .xy { color: var(--accent); }
@@ -107,37 +185,46 @@
   .loc.other .name { color: var(--muted); }
   .loc.other.active .name { color: var(--text); }
 
-  .row.spaced { margin-top: 10px; }
-  .hint { margin: 0 0 8px; color: var(--muted); font-size: 12px; }
+  /* A recent is a tile with a star in the corner; the star is its own button. */
+  .loc.recent { position: relative; padding: 0; cursor: default; }
+  .loc.recent .hit {
+    flex: 1; width: 100%; display: flex; flex-direction: column; align-items: flex-start;
+    justify-content: center; gap: 2px; padding: 8px 32px 8px 10px; text-align: left;
+    background: transparent; color: inherit; border: 0; border-radius: inherit;
+    font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  }
+  .loc.recent .hit:active { background: var(--border); }
+  .loc.recent .xy { font-style: italic; }
+  .star {
+    position: absolute; top: 4px; right: 4px; width: 26px; height: 26px; padding: 0;
+    background: transparent; color: var(--muted); border: 1px solid transparent; border-radius: 6px;
+    font-size: 14px; line-height: 1; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  }
+  .star:hover, .star:active { color: var(--accent); border-color: var(--border); }
+
+  .hint { margin: 10px 0 0; color: var(--muted); font-size: 12px; }
   .hint b { color: var(--text); }
 
-  .result {
-    flex: 1; display: flex; flex-direction: column; align-items: center;
-    justify-content: center; text-align: center;
-    background: linear-gradient(180deg, var(--panel) 0%, var(--panel-2) 100%);
-  }
-  .result .label { font-size: 11px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; }
-  .result .label b { color: var(--text); }
-  .result .value {
-    font-size: 44px; font-weight: 700; line-height: 1.1;
-    color: var(--accent); font-variant-numeric: tabular-nums;
-    margin: 4px 0 2px;
-  }
-  .result .value small { font-size: 16px; font-weight: 500; color: var(--muted); margin-left: 4px; }
-  .result .sub {
-    display: flex; gap: 14px; margin-top: 8px; font-size: 12px; color: var(--muted);
-    font-variant-numeric: tabular-nums;
-  }
-  .result .sub b { color: var(--text); font-weight: 600; }
-
   @media (pointer: coarse) {
-    .grid { gap: 10px; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
-    .loc { min-height: 64px; padding: 10px 12px; border-radius: 10px; }
+    .result { margin: 14px 14px 0; }
+    .result .value { font-size: 52px; }
+    .result .value small { font-size: 18px; }
+    .result .stats { font-size: 14px; gap: 3px; }
+    .result .stats .brg { font-size: 17px; }
+    .guns, .grid { margin-top: 12px; }
+    .guns { gap: 8px; }
+    .pill { height: 36px; font-size: 14px; padding: 0 14px; min-width: 44px; max-width: 110px; border-radius: 10px; }
+    .pill.add { min-width: 38px; }
+    .grid {
+      gap: 10px; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      grid-auto-rows: 64px;
+    }
+    .loc { padding: 10px 12px; border-radius: 10px; }
+    .loc.recent { padding: 0; }
+    .loc.recent .hit { padding: 10px 38px 10px 12px; }
     .loc .name { font-size: 16px; }
     .loc .xy { font-size: 12px; }
+    .star { width: 32px; height: 32px; font-size: 17px; top: 5px; right: 5px; }
     .hint { font-size: 13px; }
-    .result .value { font-size: 56px; }
-    .result .value small { font-size: 20px; }
-    .result .sub { font-size: 14px; gap: 18px; }
   }
 </style>

@@ -3,12 +3,19 @@
     label: string;
     value?: string;
     onenter?: () => void;
+    onblur?: () => void;
     autofocus?: boolean;
   }
 
-  let { label, value = $bindable(''), onenter, autofocus = false }: Props = $props();
+  let { label, value = $bindable(''), onenter, onblur, autofocus = false }: Props = $props();
 
   let el: HTMLInputElement;
+
+  // A number input binds as a number (or null when blank); the rest of the
+  // app keeps coordinates as the typed strings, so convert on the way out.
+  function set(v: string | number | null): void {
+    value = v == null ? '' : String(v);
+  }
 
   export function focus(): void {
     el?.focus();
@@ -27,7 +34,7 @@
   <span>{label}</span>
   <input
     bind:this={el}
-    bind:value
+    bind:value={() => value, set}
     type="number"
     step="any"
     inputmode="decimal"
@@ -35,6 +42,7 @@
     autocomplete="off"
     placeholder="0"
     onfocus={() => el.select()}
+    {onblur}
     {onkeydown}
   />
 </label>

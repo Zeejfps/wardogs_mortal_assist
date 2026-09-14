@@ -1,32 +1,69 @@
-// App state: the saved library, which map and target are selected, and the
-// manually typed target. One instance shared by both screens.
+// App state: the saved library, which map, gun and target are selected, the
+// manually typed target, and the recent manual entries. One instance shared
+// by both screens.
 import {
-  emptyLibrary, mergeLibrary, newLocation, newMap, parseLibrary, serialize, slug,
-  exportFile, type GameMap, type Library, type Location,
+  emptyLibrary, libraryFromJSON, mergeLibrary, newGun, newLocation, newMap, nextGunName,
+  parseLibrary, serialize, slug, str, exportFile,
+  type GameMap, type Gun, type Library, type Location,
 } from './library';
-import type { Position } from './mortar';
+import { num, type Position } from './mortar';
 import { read, write } from './storage';
 
 const LIB_KEY = 'mortar.library';
 const SEL_KEY = 'mortar.selection';
 /** Pre-library builds saved the four fields under this key. */
 const LEGACY_KEY = 'mortar';
+/** How many manual entries to keep per map. Two grid rows' worth at most. */
+const MAX_RECENTS = 6;
 
+/** A manual target the user finished typing, kept so it can be re-used. */
+export interface Recent {
+  x: string;
+  y: string;
+}
+
+/**
+ * Everything that is the user's own position in the data rather than the
+ * data itself. Kept out of the library so exports stay clean.
+ */
 interface Selection {
   mapId: string;
   locationId: string | null;
   manual: { tx: string; ty: string };
+  /** Active gun per map id. */
+  gunIds: Record<string, string>;
+  /** Recent manual targets per map id, newest first. */
+  recents: Record<string, Recent[]>;
+}
+
+function loadLibrary(): Library {
+  const raw = read<unknown>(LIB_KEY, null);
+  if (raw == null) return emptyLibrary();
+  try {
+    return libraryFromJSON(raw);
+  } catch {
+    return emptyLibrary();
+  }
 }
 
 function load(): { library: Library; sel: Selection } {
-  const library = read<Library | null>(LIB_KEY, null) ?? emptyLibrary();
-  const sel = read<Selection>(SEL_KEY, { mapId: '', locationId: null, manual: { tx: '', ty: '' } });
+  const library = loadLibrary();
+  const stored = read<Partial<Selection>>(SEL_KEY, {});
+  const sel: Selection = {
+    mapId: stored.mapId ?? '',
+    locationId: stored.locationId ?? null,
+    // Earlier builds saved these as numbers straight from the number inputs.
+    manual: { tx: str(stored.manual?.tx), ty: str(stored.manual?.ty) },
+    gunIds: stored.gunIds ?? {},
+    recents: stored.recents ?? {},
+  };
 
   if (library.maps.length === 0) {
     // First run on this build: carry the old saved fields into a default map.
     const legacy = read<Partial<Position>>(LEGACY_KEY, {});
     const map = newMap('Map 1');
-    map.mortar = { x: legacy.mx ?? '', y: legacy.my ?? '' };
+    map.guns[0].x = legacy.mx ?? '';
+    map.guns[0].y = legacy.my ?? '';
     library.maps.push(map);
     sel.manual = { tx: legacy.tx ?? '', ty: legacy.ty ?? '' };
   }
@@ -37,11 +74,17 @@ function load(): { library: Library; sel: Selection } {
   return { library, sel };
 }
 
+function sameRecent(a: Recent, b: Recent): boolean {
+  return num(a.x) === num(b.x) && num(a.y) === num(b.y);
+}
+
 class Store {
   library = $state<Library>(emptyLibrary());
   mapId = $state('');
   locationId = $state<string | null>(null);
   manual = $state({ tx: '', ty: '' });
+  gunIds = $state<Record<string, string>>({});
+  recents = $state<Record<string, Recent[]>>({});
 
   constructor() {
     const { library, sel } = load();
@@ -49,10 +92,17 @@ class Store {
     this.mapId = sel.mapId;
     this.locationId = sel.locationId;
     this.manual = sel.manual;
+    this.gunIds = sel.gunIds;
+    this.recents = sel.recents;
   }
 
   get map(): GameMap {
     return this.library.maps.find((m) => m.id === this.mapId) ?? this.library.maps[0];
+  }
+
+  get gun(): Gun {
+    const map = this.map;
+    return map.guns.find((g) => g.id === this.gunIds[map.id]) ?? map.guns[0];
   }
 
   get location(): Location | null {
@@ -60,12 +110,18 @@ class Store {
     return this.map.locations.find((l) => l.id === this.locationId) ?? null;
   }
 
+  /** Recent manual targets on the current map, newest first. */
+  get mapRecents(): Recent[] {
+    return this.recents[this.mapId] ?? [];
+  }
+
   /** The four fields the solver wants: gun from the map, target from the pick or manual entry. */
   get pos(): Position {
     const loc = this.location;
+    const gun = this.gun;
     return {
-      mx: this.map.mortar.x,
-      my: this.map.mortar.y,
+      mx: gun.x,
+      my: gun.y,
       tx: loc ? loc.x : this.manual.tx,
       ty: loc ? loc.y : this.manual.ty,
     };
@@ -73,17 +129,84 @@ class Store {
 
   persist(): void {
     write(LIB_KEY, this.library);
-    write(SEL_KEY, { mapId: this.mapId, locationId: this.locationId, manual: this.manual });
+    const sel: Selection = {
+      mapId: this.mapId, locationId: this.locationId, manual: this.manual,
+      gunIds: this.gunIds, recents: this.recents,
+    };
+    write(SEL_KEY, sel);
   }
 
   selectMap(id: string): void {
     if (id === this.mapId) return;
+    this.commitManual();
     this.mapId = id;
     this.locationId = null;
   }
 
   selectLocation(id: string | null): void {
+    if (id != null) this.commitManual();
     this.locationId = id;
+  }
+
+  selectGun(id: string): void {
+    this.gunIds[this.mapId] = id;
+  }
+
+  addGun(): Gun {
+    const gun = newGun(nextGunName(this.map.guns));
+    this.map.guns.push(gun);
+    this.gunIds[this.mapId] = gun.id;
+    return gun;
+  }
+
+  /** The last gun on a map cannot be removed; there is always somewhere to type. */
+  deleteGun(id: string): void {
+    const map = this.map;
+    if (map.guns.length <= 1) return;
+    map.guns = map.guns.filter((g) => g.id !== id);
+    if (this.gunIds[map.id] === id) delete this.gunIds[map.id];
+  }
+
+  /**
+   * Remember the manual target once the user is done with it: called when a
+   * field blurs, on Enter from Y1, and whenever the selection moves away.
+   * Blank or half-typed entries are ignored; repeats move to the front.
+   */
+  commitManual(): void {
+    const { tx, ty } = this.manual;
+    if (tx.trim() === '' || ty.trim() === '') return;
+    if (!Number.isFinite(parseFloat(tx)) || !Number.isFinite(parseFloat(ty))) return;
+    const entry: Recent = { x: tx, y: ty };
+    const rest = this.mapRecents.filter((r) => !sameRecent(r, entry));
+    this.recents[this.mapId] = [entry, ...rest].slice(0, MAX_RECENTS);
+  }
+
+  /**
+   * Typing into a target field. With a saved target selected, the entry
+   * detaches into a manual one starting from that target's coordinates, so
+   * a nudge never edits the saved target itself.
+   */
+  typeTarget(field: 'tx' | 'ty', value: string): void {
+    const loc = this.location;
+    if (loc) {
+      this.manual = { tx: loc.x, ty: loc.y };
+      this.locationId = null;
+    }
+    this.manual[field] = value;
+  }
+
+  /** Load a recent entry back into the manual fields. */
+  useRecent(r: Recent): void {
+    this.locationId = null;
+    this.manual = { tx: r.x, ty: r.y };
+  }
+
+  /** Turn a recent entry into a saved target on this map and select it. */
+  promoteRecent(r: Recent): Location {
+    const loc = this.addLocation(`Target ${this.map.locations.length + 1}`, r.x, r.y);
+    this.recents[this.mapId] = this.mapRecents.filter((e) => !sameRecent(e, r));
+    this.locationId = loc.id;
+    return loc;
   }
 
   addMap(name = `Map ${this.library.maps.length + 1}`): GameMap {
@@ -98,6 +221,8 @@ class Store {
   deleteMap(id: string): void {
     if (this.library.maps.length <= 1) return;
     this.library.maps = this.library.maps.filter((m) => m.id !== id);
+    delete this.gunIds[id];
+    delete this.recents[id];
     if (this.mapId === id) {
       this.mapId = this.library.maps[0].id;
       this.locationId = null;
