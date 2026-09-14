@@ -6,17 +6,25 @@
   // target turns it into a manual entry rather than editing the target, and
   // a manual entry only becomes a tile when the user taps Add.
   import Field from './Field.svelte';
+  import ImagePicker from './ImagePicker.svelte';
+  import MapView from './MapView.svelte';
+  import { imageById } from './maps';
   import { solve, fmt, num } from './mortar';
   import { store, type Recent } from './store.svelte';
 
   const map = $derived(store.map);
   const gun = $derived(store.gun);
+  const image = $derived(imageById(map.image));
+  let view: MapView | undefined = $state();
   // A row left blank on the edit screen is not a target yet.
   const targets = $derived(map.locations.filter((l) => l.name || l.x || l.y));
   const recents = $derived(store.mapRecents);
   const result = $derived(solve(store.pos));
   const manualMode = $derived(store.locationId == null);
   const hasTiles = $derived(targets.length + recents.length > 0);
+  // Focus the target field on an empty map, unless the map panel is the
+  // obvious place to tap: focusing would scroll it away and raise the keyboard.
+  const focusTarget = $derived(!hasTiles && !(image && store.mapOpen));
 
   function matches(r: Recent): boolean {
     return manualMode && num(r.x) === num(store.manual.tx) && num(r.y) === num(store.manual.ty);
@@ -57,6 +65,29 @@
 </section>
 
 <main>
+  <section class="mapcard">
+    <h2>
+      <span>Map</span>
+      <span class="tools">
+        {#if store.mapOpen && image}
+          <button class="tool" onclick={() => view?.home()} title="Centre on the gun" aria-label="Centre on the gun">⌖</button>
+        {/if}
+        <button class="tool" onclick={() => (store.mapOpen = !store.mapOpen)}>
+          {store.mapOpen ? 'Hide' : 'Show'}
+        </button>
+      </span>
+    </h2>
+    {#if store.mapOpen}
+      {#if image}
+        <div class="canvas"><MapView bind:this={view} /></div>
+        <p class="hint tiny">Tap sets the target · hold (or drag the gun) moves the gun</p>
+      {:else}
+        <div class="row"><ImagePicker /></div>
+        <p class="hint">Pick an image to tap targets straight on the map.</p>
+      {/if}
+    {/if}
+  </section>
+
   <section>
     <h2>Mortar</h2>
     <div class="row">
@@ -80,7 +111,7 @@
     <h2>Target</h2>
     <div class="row target">
       <Field label="X1" bind:value={() => store.pos.tx, (v) => store.typeTarget('tx', v)}
-             bind:this={fields.tx} onenter={() => next('tx')} autofocus={!hasTiles} />
+             bind:this={fields.tx} onenter={() => next('tx')} autofocus={focusTarget} />
       <Field label="Y1" bind:value={() => store.pos.ty, (v) => store.typeTarget('ty', v)}
              bind:this={fields.ty} onenter={() => next('ty')} />
       <button class="btn keep" onclick={() => store.addRecent()} disabled={!store.canAddRecent}
@@ -216,6 +247,20 @@
 
   .hint { margin: 10px 0 0; color: var(--muted); font-size: 12px; }
   .hint b { color: var(--text); }
+  .hint.tiny { margin-top: 6px; font-size: 11px; text-align: center; }
+
+  /* The map card: header tools, then a fixed-height canvas the map fills. */
+  .mapcard { flex: none; }
+  .mapcard .tools { display: flex; gap: 6px; }
+  .tool {
+    background: var(--panel-2); color: var(--muted);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 2px 8px; font: inherit; font-size: 11px; font-weight: 600; cursor: pointer;
+    letter-spacing: normal; text-transform: none; line-height: 1.4;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .tool:active { background: var(--border); }
+  .canvas { height: 300px; }
 
   @media (pointer: coarse) {
     .result { margin: 14px 14px 0; }
@@ -240,5 +285,8 @@
     .star, .del { width: 32px; height: 28px; font-size: 17px; }
     .del { font-size: 20px; }
     .hint { font-size: 13px; }
+    .hint.tiny { font-size: 11px; }
+    .tool { font-size: 13px; padding: 5px 10px; border-radius: 8px; }
+    .canvas { height: 42dvh; min-height: 220px; }
   }
 </style>

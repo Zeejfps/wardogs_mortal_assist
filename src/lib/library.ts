@@ -20,6 +20,8 @@ export interface Gun {
 export interface GameMap {
   id: string;
   name: string;
+  /** Id of a built-in map image (see maps.ts) to draw under the markers. */
+  image?: string;
   /** Never empty: there is always a gun to type into. */
   guns: Gun[];
   locations: Location[];
@@ -48,8 +50,10 @@ export function nextGunName(guns: Gun[]): string {
   return n < 26 ? letter : `${letter}${Math.floor(n / 26) + 1}`;
 }
 
-export function newMap(name: string): GameMap {
-  return { id: uid(), name, guns: [newGun('A')], locations: [] };
+export function newMap(name: string, image?: string): GameMap {
+  const map: GameMap = { id: uid(), name, guns: [newGun('A')], locations: [] };
+  if (image) map.image = image;
+  return map;
 }
 
 export function newLocation(name = '', x = '', y = ''): Location {
@@ -91,7 +95,7 @@ export function libraryFromJSON(raw: unknown): Library {
       return { id: str(gg.id) || uid(), name: str(gg.name) || String.fromCharCode(65 + (i % 26)), x: str(gg.x), y: str(gg.y) };
     });
     if (guns.length === 0) guns.push(newGun('A', str(mm.mortar?.x), str(mm.mortar?.y)));
-    return {
+    const map: GameMap = {
       id: str(mm.id) || uid(),
       name: str(mm.name) || 'Untitled',
       guns,
@@ -100,6 +104,8 @@ export function libraryFromJSON(raw: unknown): Library {
         return { id: str(ll.id) || uid(), name: str(ll.name), x: str(ll.x), y: str(ll.y) };
       }),
     };
+    if (str(mm.image)) map.image = str(mm.image);
+    return map;
   });
   return { version: 1, maps };
 }
@@ -122,6 +128,7 @@ export function mergeLibrary(into: Library, from: Library): { maps: number; loca
       continue;
     }
     dst.name = src.name;
+    if (src.image) dst.image = src.image;
     for (const gun of src.guns) {
       if (!gun.x && !gun.y) continue;
       const i = dst.guns.findIndex((g) => g.id === gun.id);

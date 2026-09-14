@@ -30,6 +30,22 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,png,webmanifest}'],
+        // Map tiles are hosted separately and far too big to precache. Every
+        // tile that is viewed is kept, so the areas you have looked at work
+        // offline. Tiles are fetched with CORS so only real 200s are cached:
+        // an opaque entry is padded to megabytes for quota purposes. Three
+        // maps at full depth are about 16k tiles / 200 MB.
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/wardogsmaps\.builtbyzee\.com\//,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'map-tiles',
+              cacheableResponse: { statuses: [200] },
+              expiration: { maxEntries: 20000, maxAgeSeconds: 180 * 24 * 3600, purgeOnQuotaError: true },
+            },
+          },
+        ],
       },
     }),
   ],

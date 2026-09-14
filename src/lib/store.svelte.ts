@@ -6,6 +6,7 @@ import {
   parseLibrary, serialize, slug, str, exportFile,
   type GameMap, type Gun, type Library, type Location,
 } from './library';
+import { MAP_IMAGES, fmtUnit, imageByName } from './maps';
 import { num, type Position } from './mortar';
 import { read, write } from './storage';
 
@@ -34,6 +35,8 @@ interface Selection {
   gunIds: Record<string, string>;
   /** Kept manual targets per map id, newest first. */
   recents: Record<string, Recent[]>;
+  /** Whether the map panel on the fire screen is open. */
+  mapOpen: boolean;
 }
 
 function loadLibrary(): Library {
@@ -56,16 +59,24 @@ function load(): { library: Library; sel: Selection } {
     manual: { tx: str(stored.manual?.tx), ty: str(stored.manual?.ty) },
     gunIds: stored.gunIds ?? {},
     recents: stored.recents ?? {},
+    mapOpen: stored.mapOpen ?? true,
   };
 
   if (library.maps.length === 0) {
-    // First run on this build: carry the old saved fields into a default map.
+    // First run: one map per built-in image, with any fields saved by a
+    // pre-library build carried into the first of them.
     const legacy = read<Partial<Position>>(LEGACY_KEY, {});
-    const map = newMap('Map 1');
-    map.guns[0].x = legacy.mx ?? '';
-    map.guns[0].y = legacy.my ?? '';
-    library.maps.push(map);
+    for (const img of MAP_IMAGES) library.maps.push(newMap(img.name, img.id));
+    library.maps[0].guns[0].x = legacy.mx ?? '';
+    library.maps[0].guns[0].y = legacy.my ?? '';
     sel.manual = { tx: legacy.tx ?? '', ty: legacy.ty ?? '' };
+  }
+  // A map made before images existed links itself if it is named after one.
+  for (const m of library.maps) {
+    if (!m.image) {
+      const img = imageByName(m.name);
+      if (img) m.image = img.id;
+    }
   }
   if (!library.maps.some((m) => m.id === sel.mapId)) {
     sel.mapId = library.maps[0].id;
@@ -85,6 +96,7 @@ class Store {
   manual = $state({ tx: '', ty: '' });
   gunIds = $state<Record<string, string>>({});
   recents = $state<Record<string, Recent[]>>({});
+  mapOpen = $state(true);
 
   constructor() {
     const { library, sel } = load();
@@ -94,6 +106,7 @@ class Store {
     this.manual = sel.manual;
     this.gunIds = sel.gunIds;
     this.recents = sel.recents;
+    this.mapOpen = sel.mapOpen;
   }
 
   get map(): GameMap {
@@ -131,7 +144,7 @@ class Store {
     write(LIB_KEY, this.library);
     const sel: Selection = {
       mapId: this.mapId, locationId: this.locationId, manual: this.manual,
-      gunIds: this.gunIds, recents: this.recents,
+      gunIds: this.gunIds, recents: this.recents, mapOpen: this.mapOpen,
     };
     write(SEL_KEY, sel);
   }
@@ -197,6 +210,19 @@ class Store {
     this.manual[field] = value;
   }
 
+  /** A tap on the map: a manual target at that point. */
+  setManual(x: number, y: number): void {
+    this.locationId = null;
+    this.manual = { tx: fmtUnit(x), ty: fmtUnit(y) };
+  }
+
+  /** A long press or drag on the map: move the active gun there. */
+  setGun(x: number, y: number): void {
+    const gun = this.gun;
+    gun.x = fmtUnit(x);
+    gun.y = fmtUnit(y);
+  }
+
   /** Load a recent entry back into the manual fields. */
   useRecent(r: Recent): void {
     this.locationId = null;
@@ -216,8 +242,8 @@ class Store {
     return loc;
   }
 
-  addMap(name = `Map ${this.library.maps.length + 1}`): GameMap {
-    const map = newMap(name);
+  addMap(name = `Map ${this.library.maps.length + 1}`, image?: string): GameMap {
+    const map = newMap(name, image);
     this.library.maps.push(map);
     this.mapId = map.id;
     this.locationId = null;

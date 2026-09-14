@@ -2,6 +2,7 @@
   // Data entry and sharing. Kept off the fire screen so in-game use is just
   // tapping targets. Enter walks name -> X -> Y -> a fresh row for fast typing.
   import { tick } from 'svelte';
+  import ImagePicker from './ImagePicker.svelte';
   import { type Gun, type Location } from './library';
   import { coord } from './mortar';
   import { store } from './store.svelte';
@@ -84,8 +85,13 @@
       <button class="btn danger" onclick={deleteMap} disabled={onlyMap} title="Delete this map">Delete</button>
     </div>
     <div class="row top">
+      <label class="image">
+        <span>Image</span>
+        <ImagePicker />
+      </label>
       <button class="btn" onclick={() => store.addMap()}>+ New map</button>
     </div>
+    <p class="hint">The image is drawn under the guns and targets on the fire screen. Tiles download as you look around and stay cached for offline use.</p>
   </section>
 
   <section>
@@ -146,7 +152,10 @@
 </main>
 
 <style>
-  .row.top { margin-top: 8px; }
+  .row.top { margin-top: 8px; align-items: center; }
+  .row.top .image { flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .row.top .image span { font-size: 11px; color: var(--muted); }
+  .row.top .image :global(select) { flex: 1; }
 
   input.text, input.num {
     min-width: 0; background: var(--bg); color: var(--text);
