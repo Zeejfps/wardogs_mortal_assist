@@ -3,11 +3,10 @@
     label: string;
     value?: string;
     onenter?: () => void;
-    onblur?: () => void;
     autofocus?: boolean;
   }
 
-  let { label, value = $bindable(''), onenter, onblur, autofocus = false }: Props = $props();
+  let { label, value = $bindable(''), onenter, autofocus = false }: Props = $props();
 
   let el: HTMLInputElement;
 
@@ -42,7 +41,6 @@
     autocomplete="off"
     placeholder="0"
     onfocus={() => el.select()}
-    {onblur}
     {onkeydown}
   />
 </label>

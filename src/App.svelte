@@ -11,7 +11,6 @@
 
   function toggle(): void {
     if (screen === 'edit') store.pruneBlank();
-    else store.commitManual();
     screen = screen === 'fire' ? 'edit' : 'fire';
   }
 

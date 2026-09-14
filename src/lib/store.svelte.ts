@@ -1,6 +1,6 @@
 // App state: the saved library, which map, gun and target are selected, the
-// manually typed target, and the recent manual entries. One instance shared
-// by both screens.
+// manually typed target, and the manual entries the user chose to keep. One
+// instance shared by both screens.
 import {
   emptyLibrary, libraryFromJSON, mergeLibrary, newGun, newLocation, newMap, nextGunName,
   parseLibrary, serialize, slug, str, exportFile,
@@ -13,10 +13,10 @@ const LIB_KEY = 'mortar.library';
 const SEL_KEY = 'mortar.selection';
 /** Pre-library builds saved the four fields under this key. */
 const LEGACY_KEY = 'mortar';
-/** How many manual entries to keep per map. Two grid rows' worth at most. */
+/** How many kept manual entries per map; the oldest falls off the end. */
 const MAX_RECENTS = 6;
 
-/** A manual target the user finished typing, kept so it can be re-used. */
+/** A manual target the user chose to keep so it can be re-used. */
 export interface Recent {
   x: string;
   y: string;
@@ -32,7 +32,7 @@ interface Selection {
   manual: { tx: string; ty: string };
   /** Active gun per map id. */
   gunIds: Record<string, string>;
-  /** Recent manual targets per map id, newest first. */
+  /** Kept manual targets per map id, newest first. */
   recents: Record<string, Recent[]>;
 }
 
@@ -138,13 +138,11 @@ class Store {
 
   selectMap(id: string): void {
     if (id === this.mapId) return;
-    this.commitManual();
     this.mapId = id;
     this.locationId = null;
   }
 
   selectLocation(id: string | null): void {
-    if (id != null) this.commitManual();
     this.locationId = id;
   }
 
@@ -168,17 +166,21 @@ class Store {
   }
 
   /**
-   * Remember the manual target once the user is done with it: called when a
-   * field blurs, on Enter from Y1, and whenever the selection moves away.
-   * Blank or half-typed entries are ignored; repeats move to the front.
+   * Whether the Add button has anything to add: a complete manual entry that
+   * is not already a recent. A saved target is a tile already.
    */
-  commitManual(): void {
+  get canAddRecent(): boolean {
+    if (this.locationId != null) return false;
     const { tx, ty } = this.manual;
-    if (tx.trim() === '' || ty.trim() === '') return;
-    if (!Number.isFinite(parseFloat(tx)) || !Number.isFinite(parseFloat(ty))) return;
-    const entry: Recent = { x: tx, y: ty };
-    const rest = this.mapRecents.filter((r) => !sameRecent(r, entry));
-    this.recents[this.mapId] = [entry, ...rest].slice(0, MAX_RECENTS);
+    if (!Number.isFinite(parseFloat(tx)) || !Number.isFinite(parseFloat(ty))) return false;
+    return !this.mapRecents.some((r) => sameRecent(r, { x: tx, y: ty }));
+  }
+
+  /** Keep the manual target as a recent tile, at the front. Nothing is kept unless asked. */
+  addRecent(): void {
+    if (!this.canAddRecent) return;
+    const entry: Recent = { x: this.manual.tx, y: this.manual.ty };
+    this.recents[this.mapId] = [entry, ...this.mapRecents].slice(0, MAX_RECENTS);
   }
 
   /**

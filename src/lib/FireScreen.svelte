@@ -3,7 +3,8 @@
   // below can ever squeeze it. Each card below is inputs first, then the quick
   // switches under them: gun pills on the mortar card, target tiles on the
   // target card. Tiles fill the pick into the fields; typing over a saved
-  // target turns it into a manual entry rather than editing the target.
+  // target turns it into a manual entry rather than editing the target, and
+  // a manual entry only becomes a tile when the user taps Add.
   import Field from './Field.svelte';
   import { solve, fmt, num } from './mortar';
   import { store, type Recent } from './store.svelte';
@@ -29,7 +30,6 @@
 
   // Enter moves to the next field: X -> Y -> X1 -> Y1 -> back to X1.
   function next(id: FieldId): void {
-    if (id === 'ty') store.commitManual();
     const i = order.indexOf(id);
     const to = i === order.length - 1 ? 'tx' : order[i + 1];
     fields[to]?.focus();
@@ -82,12 +82,13 @@
 
   <section>
     <h2>Target</h2>
-    <div class="row">
+    <div class="row target">
       <Field label="X1" bind:value={() => store.pos.tx, (v) => store.typeTarget('tx', v)}
-             bind:this={fields.tx} onenter={() => next('tx')} onblur={() => store.commitManual()}
-             autofocus={!hasTiles} />
+             bind:this={fields.tx} onenter={() => next('tx')} autofocus={!hasTiles} />
       <Field label="Y1" bind:value={() => store.pos.ty, (v) => store.typeTarget('ty', v)}
-             bind:this={fields.ty} onenter={() => next('ty')} onblur={() => store.commitManual()} />
+             bind:this={fields.ty} onenter={() => next('ty')} />
+      <button class="btn keep" onclick={() => store.addRecent()} disabled={!store.canAddRecent}
+              title="Keep as a recent tile">Add</button>
     </div>
     {#if hasTiles}
       <div class="grid">
@@ -144,6 +145,10 @@
   .result .stats b { color: var(--text); font-weight: 600; }
   .result .stats .brg { font-size: 14px; }
   .result .stats .brg b { color: var(--accent); }
+
+  /* Add sits beside the target fields, lined up with the inputs (same padding and text size). */
+  .row.target { align-items: flex-end; }
+  .btn.keep { flex: none; padding: 7px 12px; font-size: 15px; line-height: normal; }
 
   /* Quick switches sit under the fields on both cards. */
   .guns, .grid { margin-top: 10px; }
@@ -211,6 +216,7 @@
     .result .value small { font-size: 18px; }
     .result .stats { font-size: 14px; gap: 3px; }
     .result .stats .brg { font-size: 17px; }
+    .btn.keep { padding: 12px 14px; font-size: 19px; border-radius: 8px; }
     .guns, .grid { margin-top: 12px; }
     .guns { gap: 8px; }
     .pill { height: 36px; font-size: 14px; padding: 0 14px; min-width: 44px; max-width: 110px; border-radius: 10px; }
