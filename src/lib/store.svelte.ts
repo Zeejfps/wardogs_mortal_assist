@@ -203,6 +203,11 @@ class Store {
     this.manual = { tx: r.x, ty: r.y };
   }
 
+  /** Drop a recent tile. The manual fields keep their values, so Add can bring it back. */
+  removeRecent(r: Recent): void {
+    this.recents[this.mapId] = this.mapRecents.filter((e) => !sameRecent(e, r));
+  }
+
   /** Turn a recent entry into a saved target on this map and select it. */
   promoteRecent(r: Recent): Location {
     const loc = this.addLocation(`Target ${this.map.locations.length + 1}`, r.x, r.y);

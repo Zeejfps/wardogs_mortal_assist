@@ -40,10 +40,6 @@
     fields.tx?.focus();
   }
 
-  function promote(e: Event, r: Recent): void {
-    e.stopPropagation();
-    store.promoteRecent(r);
-  }
 </script>
 
 <section class="result">
@@ -109,8 +105,12 @@
               <span class="name">{r.x}, {r.y}</span>
               <span class="xy">recent</span>
             </button>
-            <button class="star" onclick={(e) => promote(e, r)}
-                    aria-label="Save as target" title="Save as target">★</button>
+            <div class="side">
+              <button class="star" onclick={() => store.promoteRecent(r)}
+                      aria-label="Save as target" title="Save as target">★</button>
+              <button class="del" onclick={() => store.removeRecent(r)}
+                      aria-label="Remove recent" title="Remove">×</button>
+            </div>
           </div>
         {/each}
       </div>
@@ -190,7 +190,8 @@
   .loc.other .name { color: var(--muted); }
   .loc.other.active .name { color: var(--text); }
 
-  /* A recent is a tile with a star in the corner; the star is its own button. */
+  /* A recent is a tile with a star (keep) and a cross (drop) stacked down its
+     right edge; each is its own button, sitting beside the main hit area. */
   .loc.recent { position: relative; padding: 0; cursor: default; }
   .loc.recent .hit {
     flex: 1; width: 100%; display: flex; flex-direction: column; align-items: flex-start;
@@ -200,12 +201,18 @@
   }
   .loc.recent .hit:active { background: var(--border); }
   .loc.recent .xy { font-style: italic; }
-  .star {
-    position: absolute; top: 4px; right: 4px; width: 26px; height: 26px; padding: 0;
+  .side {
+    position: absolute; top: 0; right: 0; bottom: 0; padding: 2px;
+    display: flex; flex-direction: column; justify-content: space-evenly;
+  }
+  .star, .del {
+    width: 26px; height: 22px; padding: 0;
     background: transparent; color: var(--muted); border: 1px solid transparent; border-radius: 6px;
     font-size: 14px; line-height: 1; cursor: pointer; -webkit-tap-highlight-color: transparent;
   }
+  .del { font-size: 17px; }
   .star:hover, .star:active { color: var(--accent); border-color: var(--border); }
+  .del:hover, .del:active { color: var(--danger); border-color: var(--border); }
 
   .hint { margin: 10px 0 0; color: var(--muted); font-size: 12px; }
   .hint b { color: var(--text); }
@@ -230,7 +237,8 @@
     .loc.recent .hit { padding: 10px 38px 10px 12px; }
     .loc .name { font-size: 16px; }
     .loc .xy { font-size: 12px; }
-    .star { width: 32px; height: 32px; font-size: 17px; top: 5px; right: 5px; }
+    .star, .del { width: 32px; height: 28px; font-size: 17px; }
+    .del { font-size: 20px; }
     .hint { font-size: 13px; }
   }
 </style>
